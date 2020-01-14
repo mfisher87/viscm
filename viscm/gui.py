@@ -255,7 +255,7 @@ class viscm(object):
         ax = axes['deltas']
         local_deltas = np.sqrt(
             np.sum((Jpapbp[:-1, :] - Jpapbp[1:, :]) ** 2, axis=-1))
-        local_derivs = N * local_deltas
+        local_derivs = (N-1) * local_deltas
         ax.plot(x[1:], local_derivs)
         arclength = np.sum(local_deltas)
         rmse = np.std(local_derivs)
@@ -275,7 +275,7 @@ class viscm(object):
         ax = axes['lightness-deltas']
         ax.axhline(0, linestyle="--", color="grey")
         lightness_deltas = np.diff(Jpapbp[:, 0])
-        lightness_derivs = N * lightness_deltas
+        lightness_derivs = (N-1) * lightness_deltas
 
         ax.plot(x[1:], lightness_derivs)
         title(ax, "Perceptual lightness derivative")
