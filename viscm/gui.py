@@ -554,7 +554,7 @@ class viscm_editor(object):
                                        "diverging":(TwoBezierCurveModel, 0.75),
                                        "diverging-continuous":(TwoBezierCurveModel, 0.5),
                                        }[cmtype]
-        
+
         self.control_point_model = ControlPointModel(xp, yp, fixed=self.fixed)
         self.bezier_model = BezierModel(self.control_point_model, self.method)
         axes['bezier'].add_line(self.bezier_model.bezier_curve)
@@ -562,9 +562,9 @@ class viscm_editor(object):
                                           self.min_Jp,
                                           self.max_Jp,
                                           uniform_space,
-                                          cmtype=cmtype,    
+                                          cmtype=cmtype,
                                           filter_k=filter_k)
-        
+
 
         self.highlight_point_model = HighlightPointModel(self.cmap_model, startJp)
         self.highlight_point_model1 = None
@@ -576,7 +576,7 @@ class viscm_editor(object):
                                                  self.highlight_point_model,
                                                  uniform_space,
                                                  )
-        
+
         self.bezier_highlight_point_view = HighlightPoint2DView(axes['bezier'],
                                    self.highlight_point_model)
         if cmtype == "diverging":
@@ -890,8 +890,8 @@ def loadpyfile(path):
 class Colormap(object):
     def __init__(self, cmtype, method, uniform_space):
         self.can_edit = True
-        self.params = {}    
-        self.cmtype = cmtype 
+        self.params = {}
+        self.cmtype = cmtype
         self.method = method
         self.name = None
         self.cmap = None
@@ -946,11 +946,13 @@ class Colormap(object):
             self.can_edit = False
             self.cmap = lookup_colormap_by_name(path)
             self.name = path
-        
 
-def main(argv):
+
+def main(argv=None):
     import argparse
-
+    if argv is None:
+        import sys
+        argv = sys.argv[1:]
     # Usage:
     #   python -m viscm
     #   python -m viscm edit
@@ -1107,7 +1109,8 @@ class ViewerWindow(QtWidgets.QMainWindow):
             caption="Save file",
             directory=self.cmapname + ".png",
             filter="Image Files (*.png *.jpg *.bmp)")
-        self.viscm.save_figure(fileName)
+        if fileName:
+            self.viscm.save_figure(fileName)
 
 
 class EditorWindow(QtWidgets.QMainWindow):
@@ -1296,7 +1299,8 @@ class EditorWindow(QtWidgets.QMainWindow):
             caption="Export file",
             directory=self.viscm_editor.name + ".py",
             filter=".py (*.py)")
-        self.viscm_editor.export_py(fileName)
+        if fileName:
+            self.viscm_editor.export_py(fileName)
 
     def fileQuit(self):
         self.close()
@@ -1309,7 +1313,8 @@ class EditorWindow(QtWidgets.QMainWindow):
             caption="Save file",
             directory=self.viscm_editor.name + ".jscm",
             filter="JSCM Files (*.jscm)")
-        self.viscm_editor.save_colormap(fileName)
+        if fileName:
+            self.viscm_editor.save_colormap(fileName)
 
     def loadviewer(self):
         newfig = plt.figure()
