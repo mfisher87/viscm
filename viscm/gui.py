@@ -253,16 +253,15 @@ class viscm(object):
             return max(np.max(values) * 1.1, 0)
 
         ax = axes['deltas']
-        local_deltas = np.sqrt(
-            np.sum((Jpapbp[:-1, :] - Jpapbp[1:, :]) ** 2, axis=-1))
+        local_deltas = np.sqrt(np.sum(np.diff(Jpapbp, axis=0)**2, axis=-1))
         local_derivs = (N-1) * local_deltas
         ax.plot(x[1:], local_derivs)
         arclength = np.sum(local_deltas)
         rmse = np.std(local_derivs)
         title(ax, "Perceptual derivative")
-        label(ax,
-              "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
+        label(ax, "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
               % (arclength, rmse, 100 * rmse / arclength))
+        print("Perceptual derivative: %0.5f +/- %0.5f" % (arclength, rmse))
         ax.set_ylim(-delta_ymax(-local_derivs), delta_ymax(local_derivs))
         ax.get_xaxis().set_visible(False)
 
@@ -283,9 +282,10 @@ class viscm(object):
         lightness_rmse = np.std(lightness_derivs)
         label(ax,
               "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
-              % (lightness_arclength,
-                 lightness_rmse,
+              % (lightness_arclength, lightness_rmse,
                  100 * lightness_rmse / lightness_arclength))
+        print("Perceptual lightness derivative: %0.5f +/- %0.5f"
+              % (lightness_arclength, lightness_rmse))
 
         ax.set_ylim(-delta_ymax(-lightness_derivs),
                     delta_ymax(lightness_derivs))
@@ -928,10 +928,7 @@ class Colormap(object):
                 with open(self.path) as f:
                     data = json.loads(f.read())
                     self.name = data["name"]
-                    colors = data["colors"]
-                    colors = [colors[i:i + 6] for i in range(0, len(colors), 6)]
-                    colors = [[int(c[2 * i:2 * i + 2], 16) / 255 for i in range(3)] for c in colors]
-                    self.cmap = matplotlib.colors.ListedColormap(colors, self.name)
+                    # If extensions are available, load everything
                     if "extensions" in data and "https://matplotlib.org/viscm" in data["extensions"]:
                         self.can_edit = True
                         self.params = {k:v for k,v in data["extensions"]["https://matplotlib.org/viscm"].items()
@@ -940,6 +937,21 @@ class Colormap(object):
                         self.cmtype = data["extensions"]["https://matplotlib.org/viscm"]["cmtype"]
                         self.method = data["extensions"]["https://matplotlib.org/viscm"]["spline_method"]
                         self.uniform_space = data["extensions"]["https://matplotlib.org/viscm"]["uniform_colorspace"]
+
+                        # As original method does not work properly, use params
+                        # to create an editor and use that to obtain cmap
+                        v = viscm_editor(uniform_space=self.uniform_space,
+                                         cmtype=self.cmtype,
+                                         method=self.method,
+                                         **self.params)
+                        self.cmap = v.show_viscm()
+                    # If extensions do not exist, use original method
+                    # This however suffers heavily from rounding errors
+                    else:
+                        colors = data["colors"]
+                        colors = [colors[i:i + 6] for i in range(0, len(colors), 6)]
+                        colors = [[int(c[2 * i:2 * i + 2], 16) / 255 for i in range(3)] for c in colors]
+                        self.cmap = ListedColormap(colors, self.name)
             else:
                 sys.exit("Unsupported filetype")
         else:
@@ -950,8 +962,8 @@ class Colormap(object):
 
 def main(argv=None):
     import argparse
+    import sys
     if argv is None:
-        import sys
         argv = sys.argv[1:]
     # Usage:
     #   python -m viscm
