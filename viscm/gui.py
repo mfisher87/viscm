@@ -15,7 +15,8 @@ import numpy as np
 #matplotlib.rcParams['backend'] = "QT4AGG"
 # Do this first before any other matplotlib imports, to force matplotlib to
 # use a Qt backend
-from matplotlib.backends.qt_compat import QtWidgets, QtCore, QtGui, _getSaveFileName
+from matplotlib.backends.qt_compat import (
+    QtWidgets as QW, QtCore as QC, QtGui as QG, _getSaveFileName)
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas4
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas5
 
@@ -1016,7 +1017,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     cm = Colormap(args.type, args.method, args.uniform_space)
-    app = QtWidgets.QApplication([])
+    app = QW.QApplication([])
 
     if args.colormap:
         cm.load(args.colormap)
@@ -1047,8 +1048,8 @@ def main(argv=None):
     if args.quit:
         sys.exit()
 
-    figureCanvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                               QtWidgets.QSizePolicy.Expanding)
+    figureCanvas.setSizePolicy(QW.QSizePolicy.Expanding,
+                               QW.QSizePolicy.Expanding)
     figureCanvas.updateGeometry()
 
     mainwindow.resize(800, 600)
@@ -1067,29 +1068,29 @@ def main(argv=None):
     app.exec_()
 
 def about():
-    QtWidgets.QMessageBox.about(None, "VISCM",
+    QW.QMessageBox.about(None, "VISCM",
                                 "Copyright (C) 2015-2016 Nathaniel Smith\n" +
                                 "Copyright (C) 2015-2016 Stéfan van der Walt\n"
                                 "Copyright (C) 2016 Hankun Zhao")
 
-class ViewerWindow(QtWidgets.QMainWindow):
+class ViewerWindow(QW.QMainWindow):
     def __init__(self, figurecanvas, viscm, cmapname, parent=None):
-        QtWidgets.QMainWindow.__init__(self, parent)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.main_widget = QtWidgets.QWidget(self)
+        QW.QMainWindow.__init__(self, parent)
+        self.setAttribute(QC.Qt.WA_DeleteOnClose)
+        self.main_widget = QW.QWidget(self)
         self.cmapname = cmapname
 
-        file_menu = QtWidgets.QMenu('&File', self)
+        file_menu = QW.QMenu('&File', self)
         file_menu.addAction('&Save', self.save,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_S)
+                                QC.Qt.CTRL + QC.Qt.Key_S)
         file_menu.addAction('&Quit', self.fileQuit,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
+                                QC.Qt.CTRL + QC.Qt.Key_Q)
 
-        options_menu = QtWidgets.QMenu('&Options', self)
+        options_menu = QW.QMenu('&Options', self)
         options_menu.addAction('&Toggle Gamut', self.toggle_gamut,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_G)
+                                QC.Qt.CTRL + QC.Qt.Key_G)
 
-        help_menu = QtWidgets.QMenu('&Help', self)
+        help_menu = QW.QMenu('&Help', self)
         help_menu.addAction('&About', about)
 
         self.menuBar().addMenu(file_menu)
@@ -1100,7 +1101,7 @@ class ViewerWindow(QtWidgets.QMainWindow):
         self.viscm = viscm
         self.figurecanvas = figurecanvas
 
-        v = QtWidgets.QVBoxLayout(self.main_widget)
+        v = QW.QVBoxLayout(self.main_widget)
         v.addWidget(figurecanvas)
 
         self.main_widget.setFocus()
@@ -1125,24 +1126,24 @@ class ViewerWindow(QtWidgets.QMainWindow):
             self.viscm.save_figure(fileName)
 
 
-class EditorWindow(QtWidgets.QMainWindow):
+class EditorWindow(QW.QMainWindow):
     def __init__(self, figurecanvas, viscm_editor, parent=None):
-        QtWidgets.QMainWindow.__init__(self, parent)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        QW.QMainWindow.__init__(self, parent)
+        self.setAttribute(QC.Qt.WA_DeleteOnClose)
         self.viscm_editor = viscm_editor
 
-        file_menu = QtWidgets.QMenu('&File', self)
+        file_menu = QW.QMenu('&File', self)
         file_menu.addAction('&Save', self.save,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_S)
+                                QC.Qt.CTRL + QC.Qt.Key_S)
         file_menu.addAction("&Export .py", self.export)
         file_menu.addAction('&Quit', self.fileQuit,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
+                                QC.Qt.CTRL + QC.Qt.Key_Q)
 
-        options_menu = QtWidgets.QMenu('&Options', self)
+        options_menu = QW.QMenu('&Options', self)
         options_menu.addAction('&Load in Viewer', self.loadviewer,
-                                QtCore.Qt.CTRL + QtCore.Qt.Key_V)
+                                QC.Qt.CTRL + QC.Qt.Key_V)
 
-        help_menu = QtWidgets.QMenu('&Help', self)
+        help_menu = QW.QMenu('&Help', self)
         help_menu.addAction('&About', about)
 
         self.menuBar().addMenu(file_menu)
@@ -1150,47 +1151,55 @@ class EditorWindow(QtWidgets.QMainWindow):
         self.menuBar().addMenu(help_menu)
         self.setWindowTitle("VISCM Editing : " + viscm_editor.name)
 
-        self.main_widget = QtWidgets.QWidget(self)
+        self.main_widget = QW.QWidget(self)
 
-        self.max_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.max_slider = QW.QSlider(QC.Qt.Horizontal)
         self.max_slider.setMinimum(0)
-        self.max_slider.setMaximum(100)
+        self.max_slider.setMaximum(99.99871678)
         self.max_slider.setValue(viscm_editor.max_Jp)
-        self.max_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.max_slider.setTickPosition(QW.QSlider.TicksBelow)
         self.max_slider.setTickInterval(10)
         self.max_slider.valueChanged.connect(self.updatejp)
-        self.max_slider_num = QtWidgets.QLabel(str(viscm_editor.max_Jp))
-        self.max_slider_num.setFixedWidth(30)
+        self.max_slider_num = QW.QDoubleSpinBox()
+        self.max_slider_num.setValue(viscm_editor.max_Jp)
+        self.max_slider_num.setDecimals(8)
+        self.max_slider_num.setRange(0, 99.99871678)
+        self.max_slider.valueChanged.connect(self.max_slider_num.setValue)
+        self.max_slider_num.valueChanged.connect(self.max_slider.setValue)
 
-        self.min_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.min_slider = QW.QSlider(QC.Qt.Horizontal)
         self.min_slider.setMinimum(0)
-        self.min_slider.setMaximum(100)
+        self.min_slider.setMaximum(99.99871678)
         self.min_slider.setValue(viscm_editor.min_Jp)
-        self.min_slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.min_slider.setTickPosition(QW.QSlider.TicksBelow)
         self.min_slider.setTickInterval(10)
         self.min_slider.valueChanged.connect(self.updatejp)
-        self.min_slider_num = QtWidgets.QLabel(str(viscm_editor.min_Jp))
-        self.min_slider_num.setFixedWidth(30)
+        self.min_slider_num = QW.QDoubleSpinBox()
+        self.min_slider_num.setValue(viscm_editor.min_Jp)
+        self.min_slider_num.setDecimals(8)
+        self.min_slider_num.setRange(0, 99.99871678)
+        self.min_slider.valueChanged.connect(self.min_slider_num.setValue)
+        self.min_slider_num.valueChanged.connect(self.min_slider.setValue)
 
-        max_slider_layout = QtWidgets.QHBoxLayout()
-        max_slider_layout.addWidget(QtWidgets.QLabel("Jp 0"))
+        max_slider_layout = QW.QHBoxLayout()
+        max_slider_layout.addWidget(QW.QLabel("Jp 0"))
         max_slider_layout.addWidget(self.max_slider)
         max_slider_layout.addWidget(self.max_slider_num)
-        min_slider_layout = QtWidgets.QHBoxLayout()
-        min_slider_layout.addWidget(QtWidgets.QLabel("Jp 1"))
+        min_slider_layout = QW.QHBoxLayout()
+        min_slider_layout.addWidget(QW.QLabel("Jp 1"))
         min_slider_layout.addWidget(self.min_slider)
         min_slider_layout.addWidget(self.min_slider_num)
 
-        figure_layout = QtWidgets.QHBoxLayout()
+        figure_layout = QW.QHBoxLayout()
         figure_layout.addWidget(figurecanvas)
 
-        mainlayout = QtWidgets.QVBoxLayout(self.main_widget)
+        mainlayout = QW.QVBoxLayout(self.main_widget)
         mainlayout.addLayout(figure_layout)
         mainlayout.addLayout(max_slider_layout)
         mainlayout.addLayout(min_slider_layout)
 
         if viscm_editor.cmtype == "diverging":
-            smoothness_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+            smoothness_slider = QW.QSlider(QC.Qt.Horizontal)
             # We want the slider to vary filter_k exponentially between 5 and
             # 1000. So it should go from [log10(5), log10(1000)]
             # which is about [0.699, 3.0]
@@ -1199,20 +1208,20 @@ class EditorWindow(QtWidgets.QMainWindow):
             # to deal with this.
             smoothness_slider.setMinimum(699)
             smoothness_slider.setMaximum(3000)
-            smoothness_slider.setTickPosition(QtWidgets.QSlider.NoTicks)
+            smoothness_slider.setTickPosition(QW.QSlider.NoTicks)
             smoothness_slider.valueChanged.connect(self.smoothness_slider_moved)
 
             # maximum width
-            smoothness_slider_num = QtWidgets.QLabel("1000.00")
-            metrics = QtGui.QFontMetrics(smoothness_slider_num.font())
+            smoothness_slider_num = QW.QLabel("1000.00")
+            metrics = QG.QFontMetrics(smoothness_slider_num.font())
             max_width = metrics.width("1000.00")
             smoothness_slider_num.setFixedWidth(max_width)
-            smoothness_slider_num.setAlignment(QtCore.Qt.AlignRight)
+            smoothness_slider_num.setAlignment(QC.Qt.AlignRight)
             self.smoothness_slider_num = smoothness_slider_num
 
-            smoothness_slider_layout = QtWidgets.QHBoxLayout()
+            smoothness_slider_layout = QW.QHBoxLayout()
             smoothness_slider_layout.addWidget(
-                QtWidgets.QLabel("Transition sharpness"))
+                QW.QLabel("Transition sharpness"))
             smoothness_slider_layout.addWidget(smoothness_slider)
             smoothness_slider_layout.addWidget(smoothness_slider_num)
 
@@ -1222,24 +1231,24 @@ class EditorWindow(QtWidgets.QMainWindow):
             viscm_editor.cmap_model.filter_k_trigger.add_callback(
                 self.update_smoothness_slider)
 
-        self.moveAction = QtWidgets.QAction("Drag points", self)
+        self.moveAction = QW.QAction("Drag points", self)
         self.moveAction.triggered.connect(self.set_move_mode)
         self.moveAction.setCheckable(True)
 
-        self.addAction = QtWidgets.QAction("Add points", self)
+        self.addAction = QW.QAction("Add points", self)
         self.addAction.triggered.connect(self.set_add_mode)
         self.addAction.setCheckable(True)
 
-        self.removeAction = QtWidgets.QAction("Remove points", self)
+        self.removeAction = QW.QAction("Remove points", self)
         self.removeAction.triggered.connect(self.set_remove_mode)
         self.removeAction.setCheckable(True)
 
-        self.swapAction = QtWidgets.QAction("Flip brightness", self)
+        self.swapAction = QW.QAction("Flip brightness", self)
         self.swapAction.triggered.connect(self.swapjp)
-        renameAction = QtWidgets.QAction("Rename colormap", self)
+        renameAction = QW.QAction("Rename colormap", self)
         renameAction.triggered.connect(self.rename)
 
-        saveAction = QtWidgets.QAction('Save', self)
+        saveAction = QW.QAction('Save', self)
         saveAction.triggered.connect(self.save)
 
 
@@ -1257,11 +1266,11 @@ class EditorWindow(QtWidgets.QMainWindow):
 
         self.main_widget.setFocus()
         figurecanvas.setFocus()
-        figurecanvas.setFocusPolicy(QtCore.Qt.StrongFocus)
+        figurecanvas.setFocusPolicy(QC.Qt.StrongFocus)
         self.setCentralWidget(self.main_widget)
 
     def rename(self):
-        name, ok = QtWidgets.QInputDialog.getText(
+        name, ok = QW.QInputDialog.getText(
             self, "Rename your colormap", "Enter a name",
             text=self.viscm_editor.name)
         self.viscm_editor.name = name
@@ -1288,8 +1297,6 @@ class EditorWindow(QtWidgets.QMainWindow):
         minval = self.min_slider.value()
         maxval = self.max_slider.value()
         self.viscm_editor._jp_update(minval, maxval)
-        self.min_slider_num.setText(str(minval))
-        self.max_slider_num.setText(str(maxval))
 
     def set_move_mode(self):
         self.addAction.setChecked(False)
@@ -1334,8 +1341,8 @@ class EditorWindow(QtWidgets.QMainWindow):
         cm = self.viscm_editor.show_viscm()
         v = viscm(cm, name=self.viscm_editor.name, figure=newfig)
 
-        newcanvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                                QtWidgets.QSizePolicy.Expanding)
+        newcanvas.setSizePolicy(QW.QSizePolicy.Expanding,
+                                QW.QSizePolicy.Expanding)
         newcanvas.updateGeometry()
 
         newwindow = ViewerWindow(newcanvas, v, self.viscm_editor.name, parent=self)
