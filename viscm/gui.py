@@ -643,9 +643,9 @@ class viscm_editor(object):
         test_cm = ListedColormap(cm_data, name="{name}")
         ''')
         rgb, _ = self.cmap_model.get_sRGB(num=256)
-        array_list = np.array2string(rgb, max_line_width=78,
+        array_list = np.array2string(rgb, max_line_width=79,
                                          prefix='cm_data = ',
-                                         separator=',')
+                                         separator=', ')
         with open(filepath, 'w') as f:
             f.write(template.format(**dict(array_list=array_list, type=self.cmtype, name=self.name)))
 
@@ -1153,83 +1153,45 @@ class EditorWindow(QW.QMainWindow):
 
         self.main_widget = QW.QWidget(self)
 
-        self.max_slider = QW.QSlider(QC.Qt.Horizontal)
-        self.max_slider.setMinimum(0)
-        self.max_slider.setMaximum(99.99871678)
-        self.max_slider.setValue(viscm_editor.max_Jp)
-        self.max_slider.setTickPosition(QW.QSlider.TicksBelow)
-        self.max_slider.setTickInterval(10)
-        self.max_slider.valueChanged.connect(self.updatejp)
-        self.max_slider_num = QW.QDoubleSpinBox()
-        self.max_slider_num.setValue(viscm_editor.max_Jp)
-        self.max_slider_num.setDecimals(8)
-        self.max_slider_num.setRange(0, 99.99871678)
-        self.max_slider.valueChanged.connect(self.max_slider_num.setValue)
-        self.max_slider_num.valueChanged.connect(self.max_slider.setValue)
+        self.min_num = QW.QDoubleSpinBox()
+        self.min_num.setDecimals(8)
+        self.min_num.setRange(0, 99.99871678)
+        self.min_num.setValue(viscm_editor.min_Jp)
+        self.min_num.valueChanged.connect(self.updatejp)
 
-        self.min_slider = QW.QSlider(QC.Qt.Horizontal)
-        self.min_slider.setMinimum(0)
-        self.min_slider.setMaximum(99.99871678)
-        self.min_slider.setValue(viscm_editor.min_Jp)
-        self.min_slider.setTickPosition(QW.QSlider.TicksBelow)
-        self.min_slider.setTickInterval(10)
-        self.min_slider.valueChanged.connect(self.updatejp)
-        self.min_slider_num = QW.QDoubleSpinBox()
-        self.min_slider_num.setValue(viscm_editor.min_Jp)
-        self.min_slider_num.setDecimals(8)
-        self.min_slider_num.setRange(0, 99.99871678)
-        self.min_slider.valueChanged.connect(self.min_slider_num.setValue)
-        self.min_slider_num.valueChanged.connect(self.min_slider.setValue)
+        self.max_num = QW.QDoubleSpinBox()
+        self.max_num.setDecimals(8)
+        self.max_num.setRange(0, 99.99871678)
+        self.max_num.setValue(viscm_editor.max_Jp)
+        self.max_num.valueChanged.connect(self.updatejp)
 
-        max_slider_layout = QW.QHBoxLayout()
-        max_slider_layout.addWidget(QW.QLabel("Jp 0"))
-        max_slider_layout.addWidget(self.max_slider)
-        max_slider_layout.addWidget(self.max_slider_num)
-        min_slider_layout = QW.QHBoxLayout()
-        min_slider_layout.addWidget(QW.QLabel("Jp 1"))
-        min_slider_layout.addWidget(self.min_slider)
-        min_slider_layout.addWidget(self.min_slider_num)
+        nums_layout = QW.QFormLayout()
+        nums_layout.addRow("min_Jp: ", self.min_num)
+        nums_layout.addRow("max_Jp: ", self.max_num)
 
         figure_layout = QW.QHBoxLayout()
         figure_layout.addWidget(figurecanvas)
 
-        mainlayout = QW.QVBoxLayout(self.main_widget)
-        mainlayout.addLayout(figure_layout)
-        mainlayout.addLayout(max_slider_layout)
-        mainlayout.addLayout(min_slider_layout)
-
         if viscm_editor.cmtype == "diverging":
-            smoothness_slider = QW.QSlider(QC.Qt.Horizontal)
             # We want the slider to vary filter_k exponentially between 5 and
             # 1000. So it should go from [log10(5), log10(1000)]
             # which is about [0.699, 3.0]
             # But QSlider is integer-only, so we also scale up by 1000.
             # smoothness_slider_moved and update_smoothness_slider also have
             # to deal with this.
-            smoothness_slider.setMinimum(699)
-            smoothness_slider.setMaximum(3000)
-            smoothness_slider.setTickPosition(QW.QSlider.NoTicks)
-            smoothness_slider.valueChanged.connect(self.smoothness_slider_moved)
 
-            # maximum width
-            smoothness_slider_num = QW.QLabel("1000.00")
-            metrics = QG.QFontMetrics(smoothness_slider_num.font())
-            max_width = metrics.width("1000.00")
-            smoothness_slider_num.setFixedWidth(max_width)
-            smoothness_slider_num.setAlignment(QC.Qt.AlignRight)
-            self.smoothness_slider_num = smoothness_slider_num
-
-            smoothness_slider_layout = QW.QHBoxLayout()
-            smoothness_slider_layout.addWidget(
-                QW.QLabel("Transition sharpness"))
-            smoothness_slider_layout.addWidget(smoothness_slider)
-            smoothness_slider_layout.addWidget(smoothness_slider_num)
-
-            mainlayout.addLayout(smoothness_slider_layout)
-            self.smoothness_slider = smoothness_slider
+            self.smoothness_num = QW.QDoubleSpinBox()
+            self.smoothness_num.setRange(0, 4)
+            self.smoothness_num.setStepType(self.smoothness_num.AdaptiveDecimalStepType)
+            self.smoothness_num.valueChanged.connect(self.smoothness_changed)
+            nums_layout.addRow("filter_k: ", self.smoothness_num)
 
             viscm_editor.cmap_model.filter_k_trigger.add_callback(
-                self.update_smoothness_slider)
+                self.update_smoothness_num)
+
+        mainlayout = QW.QVBoxLayout(self.main_widget)
+        mainlayout.addLayout(figure_layout)
+        mainlayout.addLayout(nums_layout)
 
         self.moveAction = QW.QAction("Drag points", self)
         self.moveAction.triggered.connect(self.set_move_mode)
@@ -1276,26 +1238,23 @@ class EditorWindow(QW.QMainWindow):
         self.viscm_editor.name = name
         self.setWindowTitle("VISCM Editing : " + self.viscm_editor.name)
 
-    def smoothness_slider_moved(self):
-        num = 10 ** (self.smoothness_slider.value() / 1000)
-        self.smoothness_slider_num.setText(str(num))
+    def smoothness_changed(self):
+        num = 10 ** self.smoothness_num.value()
         self.viscm_editor.cmap_model.set_filter_k(num)
 
-    def update_smoothness_slider(self):
+    def update_smoothness_num(self):
         filter_k = self.viscm_editor.cmap_model.filter_k
-        self.smoothness_slider_num.setText("{:0.2f}".format(filter_k))
-        self.smoothness_slider.setValue(
-            int(round(np.log10(filter_k) * 1000)))
+        self.smoothness_num.setValue(np.log10(filter_k))
 
     def swapjp(self):
-        jp1, jp2 = self.min_slider.value(), self.max_slider.value()
-        self.min_slider.setValue(jp2)
-        self.max_slider.setValue(jp1)
+        jp1, jp2 = self.min_num.value(), self.max_num.value()
+        self.min_num.setValue(jp2)
+        self.max_num.setValue(jp1)
         self.updatejp()
 
     def updatejp(self):
-        minval = self.min_slider.value()
-        maxval = self.max_slider.value()
+        minval = self.min_num.value()
+        maxval = self.max_num.value()
         self.viscm_editor._jp_update(minval, maxval)
 
     def set_move_mode(self):
