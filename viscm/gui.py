@@ -645,7 +645,7 @@ class viscm_editor(object):
         rgb, _ = self.cmap_model.get_sRGB()
         array_list = np.array2string(rgb, max_line_width=79,
                                          prefix='cm_data = ',
-                                         separator=', ')
+                                         separator=', ', threshold=rgb.size)
         with open(filepath, 'w') as f:
             f.write(template.format(**dict(array_list=array_list, type=self.cmtype, name=self.name)))
 
@@ -696,18 +696,17 @@ class BezierCMapModel(object):
         Jp, ap, bp = interp1d(np.linspace(0, 1, Jp.size), np.array([Jp, ap, bp]))(point)
         return Jp, ap, bp
 
-    def get_Jpapbp(self, num=256):
-        ap, bp = self.bezier_model.get_bezier_points_at(np.linspace(0, 1, num))
-        at = np.linspace(0, 1, num)
+    def get_Jpapbp(self):
+        at = np.linspace(0, 1, 511 if self.cmtype == 'diverging' else 256)
+        ap, bp = self.bezier_model.get_bezier_points_at(at)
         if self.cmtype == "diverging":
-            from scipy.special import erf
-            at = 1 + 2 * np.cumsum(erf(self.filter_k * (at - 0.5))) / num
+            at = np.abs(1-2*at)
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
         return Jp, ap, bp
 
-    def get_sRGB(self, num=256):
+    def get_sRGB(self):
         # Return sRGB and out-of-gamut mask
-        Jp, ap, bp = self.get_Jpapbp(num=num)
+        Jp, ap, bp = self.get_Jpapbp()
         sRGB = self.uniform_to_sRGB1(np.column_stack((Jp, ap, bp)))
         oog = np.any((sRGB > 1) | (sRGB < 0), axis=-1)
         sRGB[oog, :] = np.nan
@@ -1173,23 +1172,6 @@ class EditorWindow(QW.QMainWindow):
         figure_layout = QW.QHBoxLayout()
         figure_layout.addWidget(figurecanvas)
 
-        if viscm_editor.cmtype == "diverging":
-            # We want the slider to vary filter_k exponentially between 5 and
-            # 1000. So it should go from [log10(5), log10(1000)]
-            # which is about [0.699, 3.0]
-            # But QSlider is integer-only, so we also scale up by 1000.
-            # smoothness_slider_moved and update_smoothness_slider also have
-            # to deal with this.
-
-            self.smoothness_num = QW.QDoubleSpinBox()
-            self.smoothness_num.setRange(0, 4)
-            self.smoothness_num.setStepType(self.smoothness_num.AdaptiveDecimalStepType)
-            self.smoothness_num.valueChanged.connect(self.smoothness_changed)
-            nums_layout.addRow("filter_k: ", self.smoothness_num)
-
-            viscm_editor.cmap_model.filter_k_trigger.add_callback(
-                self.update_smoothness_num)
-
         mainlayout = QW.QVBoxLayout(self.main_widget)
         mainlayout.addLayout(figure_layout)
         mainlayout.addLayout(nums_layout)
@@ -1214,7 +1196,6 @@ class EditorWindow(QW.QMainWindow):
         saveAction = QW.QAction('Save', self)
         saveAction.triggered.connect(self.save)
 
-
         self.toolbar = self.addToolBar('Tools')
         self.toolbar.addAction(self.moveAction)
         self.toolbar.addAction(self.addAction)
@@ -1238,14 +1219,6 @@ class EditorWindow(QW.QMainWindow):
             text=self.viscm_editor.name)
         self.viscm_editor.name = name
         self.setWindowTitle("VISCM Editing : " + self.viscm_editor.name)
-
-    def smoothness_changed(self):
-        num = 10 ** self.smoothness_num.value()
-        self.viscm_editor.cmap_model.set_filter_k(num)
-
-    def update_smoothness_num(self):
-        filter_k = self.viscm_editor.cmap_model.filter_k
-        self.smoothness_num.setValue(np.log10(filter_k))
 
     def swapjp(self):
         jp1, jp2 = self.min_num.value(), self.max_num.value()

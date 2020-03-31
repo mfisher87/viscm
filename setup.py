@@ -32,6 +32,6 @@ setup(
     python_requires='>=3.5, <4',
     package_data={'viscm': ['examples/*']},
     entry_points={
-        'gui_scripts': [
+        'console_scripts': [
             "viscm = viscm.gui:main"]},
 )

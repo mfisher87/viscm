@@ -161,7 +161,7 @@ class ControlPointBuilder(object):
 ################################################################
 
 
-def compute_bezier_points(xp, yp, at, method, grid=256):
+def compute_bezier_points(xp, yp, at, method, grid=1000):
     at = np.asarray(at)
     # The Bezier curve is parameterized by a value t which ranges from 0
     # to 1. However, there is a nonlinear relationship between this value
@@ -169,8 +169,7 @@ def compute_bezier_points(xp, yp, at, method, grid=256):
     # normalized arclength. To do this, we have to calculate the function
     # arclength(t), and then invert it.
     t = np.linspace(0, 1, grid)
-
-    arclength = compute_arc_length(xp, yp, method, t=t)
+    arclength = compute_arc_length(xp, yp, method, grid)
     arclength /= arclength[-1]
     # Now (t, arclength) is a lookup table describing the t -> arclength
     # mapping. Invert it to get at -> t
@@ -181,9 +180,8 @@ def compute_bezier_points(xp, yp, at, method, grid=256):
 
     return method(list(zip(xp, yp)), at_t).T
 
-def compute_arc_length(xp, yp, method, t=None, grid=256):
-    if t is None:
-        t = np.linspace(0, 1, grid)
+def compute_arc_length(xp, yp, method, grid=1000):
+    t = np.linspace(0, 1, grid)
     x, y = method(list(zip(xp, yp)), t).T
     x_deltas = np.diff(x)
     y_deltas = np.diff(y)
@@ -196,6 +194,7 @@ def compute_arc_length(xp, yp, method, t=None, grid=256):
 
 class SingleBezierCurveModel(object):
     def __init__(self, control_point_model, method="CatmulClark"):
+        self.num = 256
         self.method = eval(method)
         self.control_point_model = control_point_model
         x, y = self.get_bezier_points()
@@ -203,8 +202,8 @@ class SingleBezierCurveModel(object):
         self.trigger = self.control_point_model.trigger
         self.trigger.add_callback(self._refresh)
 
-    def get_bezier_points(self, num=256):
-        return self.get_bezier_points_at(np.linspace(0, 1, num))
+    def get_bezier_points(self):
+        return self.get_bezier_points_at(np.linspace(0, 1, self.num))
 
     def get_bezier_points_at(self, at, grid=1000):
         xp, yp, _ = self.control_point_model.get_control_points()
@@ -213,11 +212,11 @@ class SingleBezierCurveModel(object):
     def _refresh(self):
         x, y = self.get_bezier_points()
         self.bezier_curve.set_data(x, y)
-        # self.canvas.draw()
 
 
 class TwoBezierCurveModel(object):
     def __init__(self, control_point_model, method="CatmulClark"):
+        self.num = 511
         self.method = eval(method)
         self.control_point_model = control_point_model
         x, y = self.get_bezier_points()
@@ -225,9 +224,8 @@ class TwoBezierCurveModel(object):
         self.trigger = self.control_point_model.trigger
         self.trigger.add_callback(self._refresh)
 
-
-    def get_bezier_points(self, num=256):
-        return self.get_bezier_points_at(np.linspace(0, 1, num))
+    def get_bezier_points(self):
+        return self.get_bezier_points_at(np.linspace(0, 1, self.num))
 
     def get_bezier_points_at(self, at, grid=1000):
         at = np.asarray(at)
@@ -245,8 +243,8 @@ class TwoBezierCurveModel(object):
         high_xp = xp[fixed:]
         high_yp = yp[fixed:]
 
-        low_al = compute_arc_length(low_xp, low_yp, self.method).max()
-        high_al = compute_arc_length(high_xp, high_yp, self.method).max()
+        low_al = compute_arc_length(low_xp, low_yp, self.method, grid).max()
+        high_al = compute_arc_length(high_xp, high_yp, self.method, grid).max()
 
         sf = min(low_al, high_al) / max(low_al, high_al)
 
@@ -263,7 +261,7 @@ class TwoBezierCurveModel(object):
                                            low_at, self.method, grid=grid)
         high_points = compute_bezier_points(high_xp, high_yp,
                                             high_at, self.method, grid=grid)
-        out = np.concatenate([low_points,high_points], 1)
+        out = np.concatenate([low_points, high_points], 1)
         return out
 
     def _refresh(self):
