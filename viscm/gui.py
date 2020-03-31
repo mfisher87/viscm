@@ -697,7 +697,7 @@ class BezierCMapModel(object):
         return Jp, ap, bp
 
     def get_Jpapbp(self):
-        at = np.linspace(0, 1, 511 if self.cmtype == 'diverging' else 256)
+        at = np.linspace(0, 1, 256 if self.cmtype != 'diverging' else 511)
         ap, bp = self.bezier_model.get_bezier_points_at(at)
         if self.cmtype == "diverging":
             at = np.abs(1-2*at)
