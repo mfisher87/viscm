@@ -109,7 +109,7 @@ class ControlPointBuilder(object):
 
     def on_button_press(self, event):
         modkey = event.guiEvent.modifiers()
-        # Ignore clicks outside axes 
+        # Ignore clicks outside axes
         if event.inaxes != self.ax:
             return
         res, ind = self.control_polygon.contains(event)
@@ -170,7 +170,7 @@ def compute_bezier_points(xp, yp, at, method, grid=256):
     # arclength(t), and then invert it.
     t = np.linspace(0, 1, grid)
 
-    arclength = compute_arc_length(xp, yp, method, t=t)   
+    arclength = compute_arc_length(xp, yp, method, t=t)
     arclength /= arclength[-1]
     # Now (t, arclength) is a lookup table describing the t -> arclength
     # mapping. Invert it to get at -> t
@@ -203,7 +203,7 @@ class SingleBezierCurveModel(object):
         self.trigger = self.control_point_model.trigger
         self.trigger.add_callback(self._refresh)
 
-    def get_bezier_points(self, num=200):
+    def get_bezier_points(self, num=256):
         return self.get_bezier_points_at(np.linspace(0, 1, num))
 
     def get_bezier_points_at(self, at, grid=1000):
@@ -224,16 +224,16 @@ class TwoBezierCurveModel(object):
         self.bezier_curve = Line2D(x, y)
         self.trigger = self.control_point_model.trigger
         self.trigger.add_callback(self._refresh)
-    
 
-    def get_bezier_points(self, num=200):
+
+    def get_bezier_points(self, num=256):
         return self.get_bezier_points_at(np.linspace(0, 1, num))
 
-    def get_bezier_points_at(self, at, grid=256):
+    def get_bezier_points_at(self, at, grid=1000):
         at = np.asarray(at)
         if at.ndim == 0:
             at = np.array([at])
-            
+
         low_mask = (at < 0.5)
         high_mask = (at >= 0.5)
 
@@ -257,7 +257,7 @@ class TwoBezierCurveModel(object):
             low_at = (0.5 - (0.5 - low_at) * sf) * 2
         else:
             high_at = (0.5 + (high_at - 0.5) * sf) * 2 - 1
-            low_at = low_at * 2 
+            low_at = low_at * 2
 
         low_points = compute_bezier_points(low_xp, low_yp,
                                            low_at, self.method, grid=grid)
@@ -291,7 +291,7 @@ class BezierCurveView(object):
 
 
 # We used to use scipy.special.binom here,
-# but reimplementing it ourself lets us avoid pulling in a dependency 
+# but reimplementing it ourself lets us avoid pulling in a dependency
 # scipy just for that one function.
 def binom(n, k):
     return factorial(n) * 1.0 / (factorial(k) * factorial(n - k))

@@ -445,7 +445,7 @@ def sRGB_gamut_patch(uniform_space, resolution=20):
 
 
 def sRGB_gamut_Jp_slice(Jp, uniform_space,
-                        ap_lim=(-50, 50), bp_lim=(-50, 50), resolution=200):
+                        ap_lim=(-50, 50), bp_lim=(-50, 50), resolution=256):
     bp_grid, ap_grid = np.mgrid[bp_lim[0] : bp_lim[1] : resolution * 1j,
                                 ap_lim[0] : ap_lim[1] : resolution * 1j]
     Jp_grid = Jp * np.ones((resolution, resolution))
@@ -599,7 +599,7 @@ class viscm_editor(object):
     def save_colormap(self, filepath):
         with open(filepath, 'w') as f:
             xp, yp, fixed = self.control_point_model.get_control_points()
-            rgb, _ = self.cmap_model.get_sRGB(num=256)
+            rgb, _ = self.cmap_model.get_sRGB()
             hex_blob = ""
             for color in rgb:
                 for component in color:
@@ -642,7 +642,7 @@ class viscm_editor(object):
         cm_data = {array_list}
         test_cm = ListedColormap(cm_data, name="{name}")
         ''')
-        rgb, _ = self.cmap_model.get_sRGB(num=256)
+        rgb, _ = self.cmap_model.get_sRGB()
         array_list = np.array2string(rgb, max_line_width=79,
                                          prefix='cm_data = ',
                                          separator=', ')
@@ -651,7 +651,7 @@ class viscm_editor(object):
 
 
     def show_viscm(self):
-        cm = ListedColormap(self.cmap_model.get_sRGB(num=256)[0],
+        cm = ListedColormap(self.cmap_model.get_sRGB()[0],
                             name=self.name)
 
         return cm
@@ -696,7 +696,7 @@ class BezierCMapModel(object):
         Jp, ap, bp = interp1d(np.linspace(0, 1, Jp.size), np.array([Jp, ap, bp]))(point)
         return Jp, ap, bp
 
-    def get_Jpapbp(self, num=200):
+    def get_Jpapbp(self, num=256):
         ap, bp = self.bezier_model.get_bezier_points_at(np.linspace(0, 1, num))
         at = np.linspace(0, 1, num)
         if self.cmtype == "diverging":
@@ -705,7 +705,7 @@ class BezierCMapModel(object):
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
         return Jp, ap, bp
 
-    def get_sRGB(self, num=200):
+    def get_sRGB(self, num=256):
         # Return sRGB and out-of-gamut mask
         Jp, ap, bp = self.get_Jpapbp(num=num)
         sRGB = self.uniform_to_sRGB1(np.column_stack((Jp, ap, bp)))
@@ -939,7 +939,8 @@ class Colormap(object):
                         self.method = data["extensions"]["https://matplotlib.org/viscm"]["spline_method"]
                         self.uniform_space = data["extensions"]["https://matplotlib.org/viscm"]["uniform_colorspace"]
 
-                        # As original method does not work properly, use params
+                        # As original method uses real colors instead of floats
+                        # which obviously have rounding errors, use params
                         # to create an editor and use that to obtain cmap
                         v = viscm_editor(uniform_space=self.uniform_space,
                                          cmtype=self.cmtype,
@@ -947,7 +948,7 @@ class Colormap(object):
                                          **self.params)
                         self.cmap = v.show_viscm()
                     # If extensions do not exist, use original method
-                    # This however suffers heavily from rounding errors
+                    # This however suffers from the normal rounding errors
                     else:
                         colors = data["colors"]
                         colors = [colors[i:i + 6] for i in range(0, len(colors), 6)]
