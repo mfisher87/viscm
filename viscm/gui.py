@@ -1,30 +1,22 @@
 # This file is part of viscm
 # Copyright (C) 2015 Nathaniel Smith <njs@pobox.com>
 # Copyright (C) 2015 Stefan van der Walt <stefanv@berkeley.edu>
+# Copyright (C) 2020 Ellert van der Velden <ellert_vandervelden@outlook.com>
 # See file LICENSE.txt for license information.
 
 # Simple script using CIECAM02 and CAM02-UCS to visualize properties of a
 # matplotlib colormap
-from __future__ import division, print_function, absolute_import
 import sys
 import os.path
 import json
 
 import numpy as np
 
-#matplotlib.rcParams['backend'] = "QT4AGG"
 # Do this first before any other matplotlib imports, to force matplotlib to
 # use a Qt backend
 from matplotlib.backends.qt_compat import (
     QtWidgets as QW, QtCore as QC, QtGui as QG, _getSaveFileName)
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas4
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas5
-
-def FigureCanvas(fig):
-    try:
-        return FigureCanvas5(fig)
-    except Exception:
-        return FigureCanvas4(fig)
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 import matplotlib
 import matplotlib.pyplot as plt

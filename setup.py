@@ -9,12 +9,12 @@ LONG_DESC = open("README.rst").read()
 
 setup(
     name="viscm",
-    version="0.9.1",
+    version="0.10.0",
     description=DESC,
     long_description=LONG_DESC,
-    author="Nathaniel J. Smith, Stefan van der Walt",
-    author_email="njs@pobox.com, stefanv@berkeley.edu",
-    url="https://github.com/bids/viscm",
+    author="Nathaniel J. Smith, Stefan van der Walt, Ellert van der Velden",
+    author_email="njs@pobox.com, stefanv@berkeley.edu, ellert_vandervelden@outlook.com",
+    url="https://github.com/1313e/viscm",
     license="MIT",
     classifiers =
       [ "Development Status :: 3 - Alpha",
