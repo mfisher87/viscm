@@ -120,8 +120,6 @@ class ControlPointBuilder(object):
             # Control-click deletes
             self.control_point_model.remove_point(ind["ind"][0])
         if (modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
-
-
             # Obtain all control model points
             xp, yp, _ = self.control_point_model.get_control_points()
 

@@ -593,10 +593,13 @@ class viscm_editor(object):
         with open(filepath, 'w') as f:
             xp, yp, fixed = self.control_point_model.get_control_points()
             rgb, _ = self.cmap_model.get_sRGB()
-            hex_blob = ""
-            for color in rgb:
-                for component in color:
-                    hex_blob += "%02x" % (int(round(component * 255)))
+            if np.all(np.isfinite(rgb)):
+                hex_blob = ""
+                for color in rgb:
+                    for component in color:
+                        hex_blob += "%02x" % (int(round(component * 255)))
+            else:
+                hex_blob = "N/A"
             usage_hints = ["red-green-colorblind-safe", "greyscale-safe"]
             if self.cmtype == "diverging":
                 usage_hints.append("diverging")
@@ -636,6 +639,10 @@ class viscm_editor(object):
         test_cm = ListedColormap(cm_data, name="{name}")
         ''')
         rgb, _ = self.cmap_model.get_sRGB()
+        if not np.all(np.isfinite(rgb)):
+            QW.QMessageBox.warning(None, "Warning",
+                                   "Cannot export invalid colormap!")
+            return
         array_list = np.array2string(rgb, max_line_width=79,
                                          prefix='cm_data = ',
                                          separator=', ', threshold=rgb.size)
@@ -943,9 +950,14 @@ class Colormap(object):
                     # This however suffers from the normal rounding errors
                     else:
                         colors = data["colors"]
-                        colors = [colors[i:i + 6] for i in range(0, len(colors), 6)]
-                        colors = [[int(c[2 * i:2 * i + 2], 16) / 255 for i in range(3)] for c in colors]
-                        self.cmap = ListedColormap(colors, self.name)
+                        if(colors != "N/A"):
+                            colors = [colors[i:i + 6] for i in range(0, len(colors), 6)]
+                            colors = [[int(c[2 * i:2 * i + 2], 16) / 255 for i in range(3)] for c in colors]
+                            self.cmap = ListedColormap(colors, self.name)
+                        else:
+                            sys.exit("Cannot load invalid colormap without "
+                                     "proper extensions!")
+
             else:
                 sys.exit("Unsupported filetype")
         else:
@@ -1126,7 +1138,7 @@ class EditorWindow(QW.QMainWindow):
         self.viscm_editor = viscm_editor
 
         file_menu = QW.QMenu('&File', self)
-        file_menu.addAction('&Save', self.save,
+        file_menu.addAction('&Save as...', self.save,
                                 QC.Qt.CTRL + QC.Qt.Key_S)
         file_menu.addAction("&Export .py", self.export)
         file_menu.addAction('&Quit', self.fileQuit,
@@ -1186,7 +1198,7 @@ class EditorWindow(QW.QMainWindow):
         renameAction = QW.QAction("Rename colormap", self)
         renameAction.triggered.connect(self.rename)
 
-        saveAction = QW.QAction('Save', self)
+        saveAction = QW.QAction('Save as...', self)
         saveAction.triggered.connect(self.save)
 
         self.toolbar = self.addToolBar('Tools')
@@ -1265,6 +1277,10 @@ class EditorWindow(QW.QMainWindow):
         newfig = plt.figure()
         newcanvas = FigureCanvas(newfig)
         cm = self.viscm_editor.show_viscm()
+        if not np.all(np.isfinite(cm.colors)):
+            QW.QMessageBox.warning(self, "Warning",
+                                   "Cannot show viewer for invalid colormap!")
+            return
         v = viscm(cm, name=self.viscm_editor.name, figure=newfig)
 
         newcanvas.setSizePolicy(QW.QSizePolicy.Expanding,
