@@ -149,9 +149,9 @@ def _vis_axes(fig):
             'protanomaly': grid[4, 1],
             'protanopia': grid[5, 1],
 
-            # 'lightness': grid[4:6, 1],
-            # 'colourfulness': grid[4:6, 2],
-            # 'hue': grid[4:6, 3],
+#            'lightness': grid[4:6, 1],
+#            'colourfulness': grid[4:6, 2],
+#            'hue': grid[4:6, 3],
 
             'image0': grid[0:3, 2],
             'image0-cb': grid[0:3, 3],
@@ -284,19 +284,19 @@ class viscm(object):
                     delta_ymax(lightness_derivs))
         ax.get_xaxis().set_visible(False)
 
-        # ax = axes['lightness']
-        # ax.plot(x, ciecam02.J)
-        # label(ax, "Lightness (J)")
-        # ax.set_ylim(0, 105)
-
-        # ax = axes['colourfulness']
-        # ax.plot(x, ciecam02.M)
-        # label(ax, "Colourfulness (M)")
-
-        # ax = axes['hue']
-        # ax.plot(x, ciecam02.h)
-        # label(ax, "Hue angle (h)")
-        # ax.set_ylim(0, 360)
+#        ax = axes['lightness']
+#        ax.plot(x, ciecam02.J)
+#        label(ax, "Lightness (J)")
+#        ax.set_ylim(0, 105)
+#
+#        ax = axes['colourfulness']
+#        ax.plot(x, ciecam02.M)
+#        label(ax, "Colourfulness (M)")
+#
+#        ax = axes['hue']
+#        ax.plot(x, ciecam02.h)
+#        label(ax, "Hue angle (h)")
+#        ax.set_ylim(0, 360)
 
         def anom(ax, converter, name):
             _show_cmap(ax, np.clip(converter(RGB), 0, 1))
@@ -563,7 +563,8 @@ class viscm_editor(object):
         self.highlight_point_model1 = None
 
         self.bezier_builder = ControlPointBuilder(axes['bezier'],
-                                                  self.control_point_model)
+                                                  self.control_point_model,
+                                                  self.bezier_model)
 
         self.bezier_gamut_viewer = GamutViewer2D(axes['bezier'],
                                                  self.highlight_point_model,

@@ -85,9 +85,10 @@ class ControlPointModel(object):
 
 
 class ControlPointBuilder(object):
-    def __init__(self, ax, control_point_model):
+    def __init__(self, ax, control_point_model, bezier_model):
         self.ax = ax
         self.control_point_model = control_point_model
+        self.bezier_model = bezier_model
 
         self.canvas = self.ax.figure.canvas
         xp, yp, _ = self.control_point_model.get_control_points()
@@ -120,19 +121,36 @@ class ControlPointBuilder(object):
             self.control_point_model.remove_point(ind["ind"][0])
         if (modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
 
-            # Adding a new point. Find the two closest points and insert it in
-            # between them.
-            total_squared_dists = []
-            xp, yp, _ = self.control_point_model.get_control_points()
-            for i in range(len(xp) - 1):
-                dist = (event.xdata - xp[i]) ** 2
-                dist += (event.ydata - yp[i]) ** 2
-                dist += (event.xdata - xp[i + 1]) ** 2
-                dist += (event.ydata - yp[i + 1]) ** 2
-                total_squared_dists.append(dist)
-            best = np.argmin(total_squared_dists)
 
-            self.control_point_model.add_point(best + 1,
+            # Obtain all control model points
+            xp, yp, _ = self.control_point_model.get_control_points()
+
+            # Draw lines between each combination of two consecutive points
+            lines = []
+            for i in range(len(xp)-1):
+                lines.append(list(zip(np.linspace(xp[i], xp[i+1], 100),
+                                      np.linspace(yp[i], yp[i+1], 100))))
+
+            # Adding a new point.
+            # Find the closest point on any of the lines calculated above
+            best_dist = np.infty
+            best_i = np.infty
+            for i, line in enumerate(lines):
+                for j, (xi, yi) in enumerate(line):
+                    dist = (event.xdata-xi)**2
+                    dist += (event.ydata-yi)**2
+
+                    # If this distance is smaller than current, save it
+                    if(dist < best_dist):
+                        # If the point was the first of that line, add before
+                        if(j == 0):
+                            best_i = i
+                        # Else, add after
+                        else:
+                            best_i = i+1
+                        best_dist = dist
+
+            self.control_point_model.add_point(best_i,
                                                event.xdata,
                                                event.ydata)
 
