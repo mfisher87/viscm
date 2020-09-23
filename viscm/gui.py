@@ -1160,7 +1160,7 @@ class EditorWindow(QW.QMainWindow):
 
         self.fixed_widget = QW.QCheckBox("Fixed?")
         self.fixed_widget.setChecked(True)
-        self.fixed_widget.toggled.connect(self.set_fixed_moveable)
+        self.fixed_widget.toggled.connect(self.set_fixed_movable)
 
         self.min_num = QW.QDoubleSpinBox()
         self.min_num.setDecimals(8)
@@ -1175,7 +1175,8 @@ class EditorWindow(QW.QMainWindow):
         self.max_num.valueChanged.connect(self.updatejp)
 
         options_layout = QW.QFormLayout()
-        options_layout.addRow("Central point: ", self.fixed_widget)
+        if(viscm_editor.cmtype == 'diverging'):
+            options_layout.addRow("Central point: ", self.fixed_widget)
         options_layout.addRow("Jp_0: ", self.min_num)
         options_layout.addRow("Jp_1: ", self.max_num)
 
@@ -1271,7 +1272,7 @@ class EditorWindow(QW.QMainWindow):
         self.moveAction.setChecked(False)
         self.viscm_editor.bezier_builder.mode = "remove"
 
-    def set_fixed_moveable(self, value):
+    def set_fixed_movable(self, value):
         self.viscm_editor.control_point_model._fixed_point = value
 
     def export(self):
