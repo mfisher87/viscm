@@ -85,10 +85,10 @@ class ControlPointModel(object):
 
 
 class ControlPointBuilder(object):
-    def __init__(self, ax, control_point_model, bezier_model):
+    def __init__(self, ax, control_point_model, cmap_model):
         self.ax = ax
         self.control_point_model = control_point_model
-        self.bezier_model = bezier_model
+        self.cmap_model = cmap_model
 
         self.canvas = self.ax.figure.canvas
         xp, yp, _ = self.control_point_model.get_control_points()
@@ -120,9 +120,39 @@ class ControlPointBuilder(object):
             # Control-click deletes
             self.control_point_model.remove_point(ind["ind"][0])
         if (modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
-            # Obtain all control model points
-            xp, yp, _ = self.control_point_model.get_control_points()
+            self.add_point(event.xdata, event.ydata)
 
+    def add_point(self, xdata, ydata):
+        # Obtain all control model points
+        xp, yp, _ = self.control_point_model.get_control_points()
+
+        # Check what point was added
+        # Point at lowest lightness
+        if((xdata, ydata) == (0, 0)):
+            if(self.cmap_model.cmtype != 'linear'):
+                self.control_point_model._xp[self.control_point_model._fixed] = 0
+                self.control_point_model._yp[self.control_point_model._fixed] = 0
+                self.control_point_model.trigger.fire()
+                return
+            elif(self.cmap_model.min_Jp < self.cmap_model.max_Jp):
+                best_i = 0
+            else:
+                best_i = len(xp)
+
+        # Point at highest lightness
+        elif((xdata, ydata) == (-1.91200895, -1.15144878)):
+            if(self.cmap_model.cmtype != 'linear'):
+                self.control_point_model._xp[self.control_point_model._fixed] = -1.91200895
+                self.control_point_model._yp[self.control_point_model._fixed] = -1.15144878
+                self.control_point_model.trigger.fire()
+                return
+            elif(self.cmap_model.min_Jp < self.cmap_model.max_Jp):
+                best_i = len(xp)
+            else:
+                best_i = 0
+
+        # Any other point
+        else:
             # Draw lines between each combination of two consecutive points
             lines = []
             for i in range(len(xp)-1):
@@ -135,8 +165,8 @@ class ControlPointBuilder(object):
             best_i = np.infty
             for i, line in enumerate(lines):
                 for j, (xi, yi) in enumerate(line):
-                    dist = (event.xdata-xi)**2
-                    dist += (event.ydata-yi)**2
+                    dist = (xdata-xi)**2
+                    dist += (ydata-yi)**2
 
                     # If this distance is smaller than current, save it
                     if(dist < best_dist):
@@ -148,9 +178,8 @@ class ControlPointBuilder(object):
                             best_i = i+1
                         best_dist = dist
 
-            self.control_point_model.add_point(best_i,
-                                               event.xdata,
-                                               event.ydata)
+        # Add new point
+        self.control_point_model.add_point(best_i, xdata, ydata)
 
 
     def on_button_release(self, event):

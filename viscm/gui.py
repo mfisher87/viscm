@@ -564,7 +564,7 @@ class viscm_editor(object):
 
         self.bezier_builder = ControlPointBuilder(axes['bezier'],
                                                   self.control_point_model,
-                                                  self.bezier_model)
+                                                  self.cmap_model)
 
         self.bezier_gamut_viewer = GamutViewer2D(axes['bezier'],
                                                  self.highlight_point_model,
@@ -1171,8 +1171,8 @@ class EditorWindow(QW.QMainWindow):
         self.max_num.valueChanged.connect(self.updatejp)
 
         nums_layout = QW.QFormLayout()
-        nums_layout.addRow("min_Jp: ", self.min_num)
-        nums_layout.addRow("max_Jp: ", self.max_num)
+        nums_layout.addRow("Jp_0: ", self.min_num)
+        nums_layout.addRow("Jp_1: ", self.max_num)
 
         figure_layout = QW.QHBoxLayout()
         figure_layout.addWidget(figurecanvas)
@@ -1201,6 +1201,18 @@ class EditorWindow(QW.QMainWindow):
         saveAction = QW.QAction('Save as...', self)
         saveAction.triggered.connect(self.save)
 
+        addL0_Action = QW.QAction("Add point at Jp=0", self)
+        addL0_Action.setToolTip("Add point at lowest lightness possible. "
+                                "For diverging colormaps, this replaces the "
+                                "central fixed point.")
+        addL0_Action.triggered.connect(lambda: self.viscm_editor.bezier_builder.add_point(0, 0))
+
+        addL100_Action = QW.QAction("Add point at Jp=99.99871678", self)
+        addL100_Action.setToolTip("Add point at highest lightness possible. "
+                                  "For diverging colormaps, this replaces the "
+                                  "central fixed point.")
+        addL100_Action.triggered.connect(lambda: self.viscm_editor.bezier_builder.add_point(-1.91200895, -1.15144878))
+
         self.toolbar = self.addToolBar('Tools')
         self.toolbar.addAction(self.moveAction)
         self.toolbar.addAction(self.addAction)
@@ -1210,6 +1222,9 @@ class EditorWindow(QW.QMainWindow):
         self.toolbar.addSeparator()
         self.toolbar.addAction(renameAction)
         self.toolbar.addAction(saveAction)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction(addL0_Action)
+        self.toolbar.addAction(addL100_Action)
 
         self.moveAction.setChecked(True)
 
