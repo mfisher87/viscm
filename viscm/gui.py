@@ -1158,6 +1158,10 @@ class EditorWindow(QW.QMainWindow):
 
         self.main_widget = QW.QWidget(self)
 
+        self.fixed_widget = QW.QCheckBox("Fixed?")
+        self.fixed_widget.setChecked(True)
+        self.fixed_widget.toggled.connect(self.set_fixed_moveable)
+
         self.min_num = QW.QDoubleSpinBox()
         self.min_num.setDecimals(8)
         self.min_num.setRange(0, 99.99871678)
@@ -1170,16 +1174,17 @@ class EditorWindow(QW.QMainWindow):
         self.max_num.setValue(viscm_editor.max_Jp)
         self.max_num.valueChanged.connect(self.updatejp)
 
-        nums_layout = QW.QFormLayout()
-        nums_layout.addRow("Jp_0: ", self.min_num)
-        nums_layout.addRow("Jp_1: ", self.max_num)
+        options_layout = QW.QFormLayout()
+        options_layout.addRow("Central point: ", self.fixed_widget)
+        options_layout.addRow("Jp_0: ", self.min_num)
+        options_layout.addRow("Jp_1: ", self.max_num)
 
         figure_layout = QW.QHBoxLayout()
         figure_layout.addWidget(figurecanvas)
 
         mainlayout = QW.QVBoxLayout(self.main_widget)
         mainlayout.addLayout(figure_layout)
-        mainlayout.addLayout(nums_layout)
+        mainlayout.addLayout(options_layout)
 
         self.moveAction = QW.QAction("Drag points", self)
         self.moveAction.triggered.connect(self.set_move_mode)
@@ -1265,6 +1270,9 @@ class EditorWindow(QW.QMainWindow):
         self.addAction.setChecked(False)
         self.moveAction.setChecked(False)
         self.viscm_editor.bezier_builder.mode = "remove"
+
+    def set_fixed_moveable(self, value):
+        self.viscm_editor.control_point_model._fixed_point = value
 
     def export(self):
         fileName, _ = _getSaveFileName(

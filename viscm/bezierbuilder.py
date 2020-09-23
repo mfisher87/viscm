@@ -49,6 +49,7 @@ class ControlPointModel(object):
         self._xp = list(xp)
         self._yp = list(yp)
         self._fixed = fixed
+        self._fixed_point = True
         self.trigger = Trigger()
 
     def get_control_points(self):
@@ -62,7 +63,7 @@ class ControlPointModel(object):
         self.trigger.fire()
 
     def remove_point(self, i):
-        if i == self._fixed:
+        if(i == self._fixed):
             return
         del self._xp[i]
         del self._yp[i]
@@ -71,7 +72,7 @@ class ControlPointModel(object):
         self.trigger.fire()
 
     def move_point(self, i, new_x, new_y):
-        if i == self._fixed:
+        if(i == self._fixed) and self._fixed_point:
             return
         self._xp[i] = new_x
         self._yp[i] = new_y
