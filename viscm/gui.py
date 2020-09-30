@@ -31,6 +31,8 @@ from colorspacious import (cspace_converter, cspace_convert,
                            CIECAM02Space, CIECAM02Surround)
 from .minimvc import Trigger
 
+from cmasher import get_cmap_type
+
 
 # The correct L_A value for the standard sRGB viewing conditions is:
 #   (64 / np.pi) / 5
@@ -342,12 +344,22 @@ class viscm(object):
         _setup_Jpapbp_axis(ax)
 
         images = []
-        image_args = []
+        image_kwargs = []
         example_dir = os.path.join(os.path.dirname(__file__), "examples")
 
-        images.append(np.loadtxt(os.path.join(example_dir,
-                                 "st-helens_before-modified.txt.gz")).T)
-        image_args.append({})
+        if(get_cmap_type(cm) == 'sequential'):
+            images.append(np.loadtxt(os.path.join(example_dir,
+                                     "st-helens_before-modified.txt.gz")).T)
+            image_kwargs.append({})
+        else:
+            # Adapted from
+            #    https://github.com/endolith/bipolar-colormap/blob/master/bipolar.py
+            X, Y = np.meshgrid(np.linspace(-2.5, 2.5, int(600/(327/468))), np.linspace(-2, 2, 600))
+            z = (1-X/2+X**5+Y**3)*np.exp(-X**2-Y**2)
+            images.append(z)
+            image_kwargs.append({
+                'vmin': -abs(z).max(),
+                'vmax': abs(z).max()})
 
         # Adapted from
         #   http://matplotlib.org/mpl_examples/images_contours_and_fields/pcolormesh_levels.py
@@ -355,14 +367,14 @@ class viscm(object):
         y, x = np.mgrid[-5 : 5 + dy : dy, -5 : 10 + dx : dx]
         z = np.sin(x) ** 10 + np.cos(10 + y * x) + np.cos(x) + 0.2 * y + 0.1 * x
         images.append(z)
-        image_args.append({})
+        image_kwargs.append({})
 
         # Peter Kovesi's colormap test image at
         #   http://peterkovesi.com/projects/colourmaps/colourmaptest.tif
 
         images.append(np.load(os.path.join(example_dir, "colourmaptest.npy")))
 
-        image_args.append({})
+        image_kwargs.append({})
 
         def _deuter_transform(RGBA):
             # clipping, alpha handling
@@ -371,14 +383,14 @@ class viscm(object):
             return np.concatenate((RGB, RGBA[..., 3:]), axis=-1)
         deuter_cm = TransformedCMap(_deuter_transform, cm)
 
-        for i, (image, args) in enumerate(zip(images, image_args)):
+        for i, (image, kwargs) in enumerate(zip(images, image_kwargs)):
             ax = axes['image%i' % (i,)]
-            ax.imshow(image, cmap=cm, **args)
+            ax.imshow(image, cmap=cm, **kwargs)
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
 
             ax_cb = axes['image%i-cb' % (i,)]
-            ax_cb.imshow(image, cmap=deuter_cm, **args)
+            ax_cb.imshow(image, cmap=deuter_cm, **kwargs)
             ax_cb.get_xaxis().set_visible(False)
             ax_cb.get_yaxis().set_visible(False)
 

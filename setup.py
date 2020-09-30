@@ -28,7 +28,8 @@ setup(
                       "matplotlib>=2.2.4",
                       "numpy>=1.8",
                       "pyqt5==5.12.*",
-                      "scipy>=1.0.0"],
+                      "scipy>=1.0.0",
+                      "cmasher>=1.5.0"],
     python_requires='>=3.5, <4',
     package_data={'viscm': ['examples/*']},
     entry_points={
