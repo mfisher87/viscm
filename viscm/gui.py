@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d
 from matplotlib.gridspec import GridSpec
 import matplotlib.colors
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap, TwoSlopeNorm
 
 from scipy.interpolate import UnivariateSpline
 
@@ -358,8 +358,7 @@ class viscm(object):
             z = (1-X/2+X**5+Y**3)*np.exp(-X**2-Y**2)
             images.append(z)
             image_kwargs.append({
-                'vmin': -abs(z).max(),
-                'vmax': abs(z).max()})
+                'norm': TwoSlopeNorm(0)})
 
         # Adapted from
         #   http://matplotlib.org/mpl_examples/images_contours_and_fields/pcolormesh_levels.py

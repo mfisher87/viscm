@@ -25,7 +25,7 @@ setup(
         ],
     packages=find_packages(),
     install_requires=["colorspacious>=1.1.0",
-                      "matplotlib>=2.2.4",
+                      "matplotlib>=3.2.0",
                       "numpy>=1.8",
                       "pyqt5==5.12.*",
                       "scipy>=1.0.0",
