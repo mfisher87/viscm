@@ -347,11 +347,7 @@ class viscm(object):
         image_kwargs = []
         example_dir = os.path.join(os.path.dirname(__file__), "examples")
 
-        if(get_cmap_type(cm) == 'sequential'):
-            images.append(np.loadtxt(os.path.join(example_dir,
-                                     "st-helens_before-modified.txt.gz")).T)
-            image_kwargs.append({})
-        else:
+        if(get_cmap_type(cm) in ('diverging', 'cyclic')):
             # Adapted from
             #    https://github.com/endolith/bipolar-colormap/blob/master/bipolar.py
             X, Y = np.meshgrid(np.linspace(-2.5, 2.5, int(600/(327/468))), np.linspace(-2, 2, 600))
@@ -359,6 +355,13 @@ class viscm(object):
             images.append(z)
             image_kwargs.append({
                 'norm': TwoSlopeNorm(0)})
+        else:
+            images.append(
+                np.loadtxt(
+                    os.path.join(example_dir,
+                                 "st-helens_before-modified_cropped.txt.gz"),
+                    dtype=int))
+            image_kwargs.append({})
 
         # Adapted from
         #   http://matplotlib.org/mpl_examples/images_contours_and_fields/pcolormesh_levels.py
