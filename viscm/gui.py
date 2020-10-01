@@ -99,7 +99,7 @@ JP_LIM = (-1, 101)
 def _setup_Jpapbp_axis(ax):
     ax.set_xlabel("a' (green -> red)")
     ax.set_ylabel("b' (blue -> yellow)")
-    ax.set_zlabel("J'/K (white -> black)")
+    ax.set_zlabel("J'/K (black -> white)")
     ax.set_xlim(*AP_LIM)
     ax.set_ylim(*BP_LIM)
     ax.set_zlim(*JP_LIM)
