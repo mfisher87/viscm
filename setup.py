@@ -29,7 +29,9 @@ setup(
                       "numpy>=1.8",
                       "pyqt5==5.12.*",
                       "scipy>=1.0.0",
-                      "cmasher>=1.5.0"],
+                      "cmasher>=1.5.0",
+                      "guipy>=0.0.2",
+                      "qtpy>=1.9.0"],
     python_requires='>=3.5, <4',
     package_data={'viscm': ['examples/*']},
     entry_points={

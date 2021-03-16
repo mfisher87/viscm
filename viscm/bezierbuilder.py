@@ -43,36 +43,42 @@ from matplotlib.backends.qt_compat import QtGui, QtCore
 from .minimvc import Trigger
 
 class ControlPointModel(object):
-    def __init__(self, xp, yp, fixed=None):
+    def __init__(self, xp, yp, cmtype, fixed=None):
         # fixed is either None (if no point is fixed) or and index of a fixed
         # point
         self._xp = list(xp)
         self._yp = list(yp)
-        self._fixed = fixed
+        self._fixed = [fixed, fixed] if isinstance(fixed, int) else fixed
+        self._cmtype = cmtype
         self._fixed_point = True
         self.trigger = Trigger()
 
     def get_control_points(self):
-        return list(self._xp), list(self._yp), self._fixed
+        fixed = self._fixed[0] if self._cmtype == "diverging" else self._fixed
+        return list(self._xp), list(self._yp), fixed
 
     def add_point(self, i, new_x, new_y):
         self._xp.insert(i, new_x)
         self._yp.insert(i, new_y)
-        if self._fixed is not None and i <= self._fixed:
-            self._fixed += 1
+        if self._fixed is not None:
+            for j, fixed in enumerate(self._fixed):
+                if(i <= fixed):
+                    self._fixed[j] += 1
         self.trigger.fire()
 
     def remove_point(self, i):
-        if(i == self._fixed):
+        if self._fixed is not None and i in self._fixed:
             return
         del self._xp[i]
         del self._yp[i]
-        if self._fixed is not None and i < self._fixed:
-            self._fixed -= 1
+        if self._fixed is not None:
+            for j, fixed in enumerate(self._fixed):
+                if(i < fixed):
+                    self._fixed[j] -= 1
         self.trigger.fire()
 
     def move_point(self, i, new_x, new_y):
-        if(i == self._fixed) and self._fixed_point:
+        if self._fixed is not None and i in self._fixed and self._fixed_point:
             return
         self._xp[i] = new_x
         self._yp[i] = new_y
@@ -81,7 +87,7 @@ class ControlPointModel(object):
     def set_control_points(self, xp, yp, fixed=None):
         self._xp = list(xp)
         self._yp = list(yp)
-        self._fixed = fixed
+        self._fixed = [fixed, fixed] if isinstance(fixed, int) else fixed
         self.trigger.fire()
 
 
@@ -93,6 +99,9 @@ class ControlPointBuilder(object):
 
         self.canvas = self.ax.figure.canvas
         xp, yp, _ = self.control_point_model.get_control_points()
+        if self.control_point_model._cmtype == 'cyclic':
+            xp.append(xp[0])
+            yp.append(yp[0])
         self.control_polygon = Line2D(xp, yp,
                                       ls="--", c="#666666", marker="x",
                                       mew=2, mec="#204a87")
@@ -130,9 +139,9 @@ class ControlPointBuilder(object):
         # Check what point was added
         # Point at lowest lightness
         if((xdata, ydata) == (0, 0)):
-            if(self.cmap_model.cmtype != 'linear'):
-                self.control_point_model._xp[self.control_point_model._fixed] = 0
-                self.control_point_model._yp[self.control_point_model._fixed] = 0
+            if(self.cmap_model.cmtype != 'sequential'):
+                self.control_point_model._xp[self.control_point_model._fixed[0]] = 0
+                self.control_point_model._yp[self.control_point_model._fixed[0]] = 0
                 self.control_point_model.trigger.fire()
                 return
             elif(self.cmap_model.min_Jp < self.cmap_model.max_Jp):
@@ -142,9 +151,9 @@ class ControlPointBuilder(object):
 
         # Point at highest lightness
         elif((xdata, ydata) == (-1.91200895, -1.15144878)):
-            if(self.cmap_model.cmtype != 'linear'):
-                self.control_point_model._xp[self.control_point_model._fixed] = -1.91200895
-                self.control_point_model._yp[self.control_point_model._fixed] = -1.15144878
+            if(self.cmap_model.cmtype != 'sequential'):
+                self.control_point_model._xp[self.control_point_model._fixed[1]] = -1.91200895
+                self.control_point_model._yp[self.control_point_model._fixed[1]] = -1.15144878
                 self.control_point_model.trigger.fire()
                 return
             elif(self.cmap_model.min_Jp < self.cmap_model.max_Jp):
@@ -199,6 +208,9 @@ class ControlPointBuilder(object):
 
     def _refresh(self):
         xp, yp, _ = self.control_point_model.get_control_points()
+        if self.control_point_model._cmtype == 'cyclic':
+            xp.append(xp[0])
+            yp.append(yp[0])
         self.control_polygon.set_data(xp, yp)
 
         self.canvas.draw()
@@ -284,10 +296,18 @@ class TwoBezierCurveModel(object):
         xp, yp, fixed = self.control_point_model.get_control_points()
         assert fixed is not None
 
-        low_xp = xp[:fixed + 1]
-        low_yp = yp[:fixed + 1]
-        high_xp = xp[fixed:]
-        high_yp = yp[fixed:]
+        if self.control_point_model._cmtype == 'diverging':
+            low_xp = xp[:fixed + 1]
+            low_yp = yp[:fixed + 1]
+            high_xp = xp[fixed:]
+            high_yp = yp[fixed:]
+        else:
+            low_xp = xp[fixed[0]:fixed[1]+1]
+            low_yp = yp[fixed[0]:fixed[1]+1]
+            high_xp = xp[fixed[1]:]
+            high_xp.extend(xp[:fixed[0]+1])
+            high_yp = yp[fixed[1]:]
+            high_yp.extend(yp[:fixed[0]+1])
 
         low_al = compute_arc_length(low_xp, low_yp, self.method, grid).max()
         high_al = compute_arc_length(high_xp, high_yp, self.method, grid).max()
@@ -378,12 +398,3 @@ def CatmulClark(points, at):
     xp = np.interp(at, np.linspace(0, 1, len(xp)), xp)
     yp = np.interp(at, np.linspace(0, 1, len(yp)), yp)
     return np.asarray(list(zip(xp, yp)))
-
-
-
-
-
-
-
-
-

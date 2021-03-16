@@ -14,8 +14,9 @@ import numpy as np
 
 # Do this first before any other matplotlib imports, to force matplotlib to
 # use a Qt backend
-from matplotlib.backends.qt_compat import (
-    QtWidgets as QW, QtCore as QC, QtGui as QG, _getSaveFileName)
+from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
+from guipy import layouts as GL, widgets as GW
+from guipy.widgets import get_box_value, get_modified_signal, set_box_value
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 import matplotlib
@@ -516,7 +517,7 @@ def _viscm_editor_axes(fig):
 
 class viscm_editor(object):
     def __init__(self, figure=None, uniform_space="CAM02-UCS",
-                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype="linear", filter_k=100, fixed=-1, name="new cm", method="CatmulClark"):
+                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype='sequential', filter_k=100, fixed=-1, name="new cm", method="CatmulClark"):
         from .bezierbuilder import SingleBezierCurveModel, TwoBezierCurveModel, ControlPointBuilder, ControlPointModel
         if figure is None:
             figure = plt.figure()
@@ -530,39 +531,44 @@ class viscm_editor(object):
         self.max_Jp = max_Jp
         self.fixed = fixed
         if self.cmtype in ["diverging", "diverging-continuous"] and xp is None:
-            self.fixed = 4;
+            self.fixed = 4
+        elif self.cmtype in ["cyclic"] and xp is None:
+            self.fixed = [0, 4]
         if xp is None or yp is None:
             if method == "Bezier":
-                xp = {"linear":[-2.0591553836234482, 59.377014829142524,
+                xp = {'sequential':[-2.0591553836234482, 59.377014829142524,
                       43.552546744036135, 4.7670857511283202,
                       -9.5059638942617539],
                       "diverging":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
                       "diverging-continuous":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
                       }[cmtype]
-                yp = {"linear":[-25.664893617021221, -21.941489361702082,
+                yp = {'sequential':[-25.664893617021221, -21.941489361702082,
                       38.874113475177353, 20.567375886524871,
                       32.047872340425585],
                       "diverging":[-5, 20, 20, -21, 0, 21, -38, -20, -5],
                       "diverging-continuous":[-5, 20, 20, -21, 0, 21, -38, -20, -5]
                       }[cmtype]
             if method == "CatmulClark":
-                xp = {"linear":[-2, 20,23, 5, -9],
+                xp = {'sequential':[-2, 20,23, 5, -9],
                       "diverging":[-9, -15, -10, 0, 0, 5, 10, 15, 2],
                       "diverging-continuous":[-9, -5, -1, 0, 0, 5, 10, 15, 2],
                       }[cmtype]
-                yp = {"linear":[-25, -21, 18, 10, 12],
+                yp = {'sequential':[-25, -21, 18, 10, 12],
                       "diverging":[-5, -8, -20, -10, 0, 2, 8, 15, 5],
                       "diverging-continuous":[-5, -8, -20, -10, 0, 2, 8, 15, 5]
                       }[cmtype]
         xy_lim = {"Bezier" : (-100, 100),
                   "CatmulClark" : (-50, 50)}[self.method]
 
-        BezierModel, startJp = {"linear":(SingleBezierCurveModel, 0.5),
-                                       "diverging":(TwoBezierCurveModel, 0.75),
-                                       "diverging-continuous":(TwoBezierCurveModel, 0.5),
-                                       }[cmtype]
+        BezierModel, startJp = {
+            'sequential': (SingleBezierCurveModel, 0.5),
+            "diverging": (TwoBezierCurveModel, 0.75),
+            "diverging-continuous": (TwoBezierCurveModel, 0.5),
+            "cyclic": (TwoBezierCurveModel, 0.75)
+            }[cmtype]
 
-        self.control_point_model = ControlPointModel(xp, yp, fixed=self.fixed)
+        self.control_point_model = ControlPointModel(xp, yp, cmtype,
+                                                     fixed=self.fixed)
         self.bezier_model = BezierModel(self.control_point_model, self.method)
         axes['bezier'].add_line(self.bezier_model.bezier_curve)
         self.cmap_model = BezierCMapModel(self.bezier_model,
@@ -587,7 +593,7 @@ class viscm_editor(object):
 
         self.bezier_highlight_point_view = HighlightPoint2DView(axes['bezier'],
                                    self.highlight_point_model)
-        if cmtype == "diverging":
+        if cmtype in ("diverging", 'cyclic'):
             self.highlight_point_model1 = HighlightPointModel(self.cmap_model, 1 - startJp)
             self.bezier_highlight_point_view1 = HighlightPoint2DView(axes['bezier'],
                                        self.highlight_point_model1)
@@ -617,8 +623,10 @@ class viscm_editor(object):
             usage_hints = ["red-green-colorblind-safe", "greyscale-safe"]
             if self.cmtype == "diverging":
                 usage_hints.append("diverging")
-            elif self.cmtype == "linear":
+            elif self.cmtype == 'sequential':
                 usage_hints.append("sequential")
+            elif self.cmtype == "cyclic":
+                usage_hints.append("cyclic")
             xp, yp, fixed = self.control_point_model.get_control_points()
             extensions = {"min_Jp" : self.min_Jp,
                           "max_Jp" : self.max_Jp,
@@ -681,7 +689,7 @@ class viscm_editor(object):
 
 
 class BezierCMapModel(object):
-    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, filter_k=100, cmtype="linear"):
+    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, filter_k=100, cmtype='sequential'):
         self.bezier_model = bezier_model
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
@@ -711,9 +719,9 @@ class BezierCMapModel(object):
         return Jp, ap, bp
 
     def get_Jpapbp(self):
-        at = np.linspace(0, 1, 256 if self.cmtype != 'diverging' else 511)
+        at = np.linspace(0, 1, 256 if self.cmtype == 'sequential' else 511)
         ap, bp = self.bezier_model.get_bezier_points_at(at)
-        if self.cmtype == "diverging":
+        if self.cmtype != 'sequential':
             at = np.abs(1-2*at)
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
         return Jp, ap, bp
@@ -881,25 +889,25 @@ class HighlightPoint2DView(object):
         self.ax.figure.canvas.draw()
 
 
-def loadpyfile(path):
-    is_native = True
-    cmtype = "linear"
-    method = "Bezier"
-    ns = {'__name__': '',
-          '__file__': os.path.basename(path),
-          }
-    with open(args.colormap) as f:
-        code = compile(f.read(),
-                       os.path.basename(args.colormap),
-                       'exec')
-        exec(code, globals(), ns)
+# def loadpyfile(path):
+#     is_native = True
+#     cmtype = 'sequential'
+#     method = "Bezier"
+#     ns = {'__name__': '',
+#           '__file__': os.path.basename(path),
+#           }
+#     with open(args.colormap) as f:
+#         code = compile(f.read(),
+#                         os.path.basename(args.colormap),
+#                         'exec')
+#         exec(code, globals(), ns)
 
-    params = ns.get('parameters', {})
-    if "min_JK" in params:
-        params["min_Jp"] = params.pop("min_JK")
-        params["max_Jp"] = params.pop("max_JK")
-    cmap = ns.get("test_cm", None)
-    return params, cmtype, cmap.name, cmap, is_native, method
+#     params = ns.get('parameters', {})
+#     if "min_JK" in params:
+#         params["min_Jp"] = params.pop("min_JK")
+#         params["max_Jp"] = params.pop("max_JK")
+#     cmap = ns.get("test_cm", None)
+#     return params, cmtype, cmap.name, cmap, is_native, method
 
 class Colormap(object):
     def __init__(self, cmtype, method, uniform_space):
@@ -919,7 +927,7 @@ class Colormap(object):
             _, extension = os.path.splitext(path)
             if extension == ".py":
                 self.can_edit = True
-                self.cmtype = "linear"
+                self.cmtype = 'sequential'
                 self.method = "Bezier"
                 ns = {'__name__': '',
                       '__file__': os.path.basename(self.path),
@@ -949,6 +957,7 @@ class Colormap(object):
                                 if k in {"xp", "yp", "min_Jp", "max_Jp", "fixed", "filter_k", "uniform_space"}}
                         self.params["name"] = self.name
                         self.cmtype = data["extensions"]["https://matplotlib.org/viscm"]["cmtype"]
+                        self.cmtype = 'sequential' if self.cmtype == 'linear' else self.cmtype
                         self.method = data["extensions"]["https://matplotlib.org/viscm"]["spline_method"]
                         self.uniform_space = data["extensions"]["https://matplotlib.org/viscm"]["uniform_colorspace"]
 
@@ -1021,8 +1030,8 @@ def main(argv=None):
                         "assumed sRGB viewing conditions) from their bezier "
                         "curves.")
     parser.add_argument("-t", "--type", type=str,
-                        default="linear", choices=["linear", "diverging", "diverging-continuous"],
-                        help="Choose a colormap type. Supported options are 'linear', 'diverging', and 'diverging-continuous")
+                        default="sequential", choices=["sequential", "diverging", "diverging-continuous"],
+                        help="Choose a colormap type. Supported options are 'sequential', 'diverging', and 'diverging-continuous")
     parser.add_argument("-m", "--method", type=str,
                         default="CatmulClark", choices=["Bezier", "CatmulClark"],
                         help="Choose a spline construction method. 'CatmulClark' is the default, but you may choose the legacy option 'Bezier'")
@@ -1137,7 +1146,7 @@ class ViewerWindow(QW.QMainWindow):
         self.fileQuit()
 
     def save(self):
-        fileName, _ = _getSaveFileName(
+        fileName, _ = QW.QFileDialog.getSaveFileName(
             caption="Save file",
             directory=self.cmapname + ".png",
             filter="Image Files (*.png *.jpg *.bmp)")
@@ -1188,11 +1197,52 @@ class EditorWindow(QW.QMainWindow):
         self.max_num.setValue(viscm_editor.max_Jp)
         self.max_num.valueChanged.connect(self.updatejp)
 
-        options_layout = QW.QFormLayout()
-        if(viscm_editor.cmtype == 'diverging'):
-            options_layout.addRow("Central point: ", self.fixed_widget)
-        options_layout.addRow("Jp_0: ", self.min_num)
-        options_layout.addRow("Jp_1: ", self.max_num)
+        # Create options layout for the bottom of the viewer
+        options_layout = QW.QHBoxLayout()
+
+        # Create layout for setting the colormap independent options
+        options_layoutL = QW.QFormLayout()
+        options_layout.addLayout(options_layoutL)
+
+        # Add colormap independent options
+        # Cmap type box
+        cmap_type_box = GW.QComboBox()
+        cmap_type_box.addItems(['Sequential', 'Diverging', 'Cyclic'])
+        set_box_value(cmap_type_box, viscm_editor.cmtype.capitalize())
+        options_layoutL.addRow("Colormap type: ", cmap_type_box)
+        self.cmap_type_box = cmap_type_box
+
+        # X-axis limits
+        x_lim_box = GW.DualSpinBox(sep='X')
+        x_lims = self.viscm_editor.axes['bezier'].get_xlim()
+        x_lim_box[0].setRange(-250, x_lims[0])
+        x_lim_box[1].setRange(x_lims[1], 250)
+        set_box_value(x_lim_box, x_lims)
+        get_modified_signal(x_lim_box).connect(
+            self.viscm_editor.axes['bezier'].set_xlim)
+        get_modified_signal(x_lim_box).connect(figurecanvas.draw)
+        options_layoutL.addRow("X-axis limits: ", x_lim_box)
+
+        # Y-axis limits
+        y_lim_box = GW.DualSpinBox(sep='X')
+        y_lims = self.viscm_editor.axes['bezier'].get_ylim()
+        y_lim_box[0].setRange(-250, y_lims[0])
+        y_lim_box[1].setRange(y_lims[1], 250)
+        set_box_value(y_lim_box, y_lims)
+        get_modified_signal(y_lim_box).connect(
+            self.viscm_editor.axes['bezier'].set_ylim)
+        get_modified_signal(y_lim_box).connect(figurecanvas.draw)
+        options_layoutL.addRow("Y-axis limits: ", y_lim_box)
+
+        # Create layout for setting the colormap dependent options
+        options_layoutR = QW.QFormLayout()
+        options_layout.addLayout(options_layoutR)
+
+        # Add colormap dependent options
+        if viscm_editor.cmtype in ('diverging', 'cyclic'):
+            options_layoutR.addRow("Central point: ", self.fixed_widget)
+        options_layoutR.addRow("Jp_0: ", self.min_num)
+        options_layoutR.addRow("Jp_1: ", self.max_num)
 
         figure_layout = QW.QHBoxLayout()
         figure_layout.addWidget(figurecanvas)
@@ -1290,7 +1340,7 @@ class EditorWindow(QW.QMainWindow):
         self.viscm_editor.control_point_model._fixed_point = value
 
     def export(self):
-        fileName, _ = _getSaveFileName(
+        fileName, _ = QW.QFileDialog.getSaveFileName(
             caption="Export file",
             directory=self.viscm_editor.name + ".py",
             filter=".py (*.py)")
@@ -1304,7 +1354,7 @@ class EditorWindow(QW.QMainWindow):
         self.fileQuit()
 
     def save(self):
-        fileName, _ = _getSaveFileName(
+        fileName, _ = QW.QFileDialog.getSaveFileName(
             caption="Save file",
             directory=self.viscm_editor.name + ".jscm",
             filter="JSCM Files (*.jscm)")
