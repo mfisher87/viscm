@@ -12,12 +12,11 @@ import json
 
 import numpy as np
 
-# Do this first before any other matplotlib imports, to force matplotlib to
-# use a Qt backend
-from qtpy import QtCore as QC, QtGui as QG, QtWidgets as QW
+from qtpy import QtCore as QC, QtWidgets as QW
 from guipy import layouts as GL, widgets as GW
 from guipy.widgets import get_box_value, get_modified_signal, set_box_value
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvasQTAgg as FigureCanvas)
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -26,11 +25,12 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.colors
 from matplotlib.colors import ListedColormap, TwoSlopeNorm
 
-from scipy.interpolate import UnivariateSpline
-
 from colorspacious import (cspace_converter, cspace_convert,
                            CIECAM02Space, CIECAM02Surround)
 from .minimvc import Trigger
+from .bezierbuilder import (
+        SingleBezierCurveModel, TwoBezierCurveModel, ControlPointBuilder,
+        ControlPointModel)
 
 from cmasher import get_cmap_type
 
@@ -61,10 +61,13 @@ GREYSCALE_CONVERSION_SPACE = "JCh"
 
 _sRGB1_to_JCh = cspace_converter("sRGB1", GREYSCALE_CONVERSION_SPACE)
 _JCh_to_sRGB1 = cspace_converter(GREYSCALE_CONVERSION_SPACE, "sRGB1")
+
+
 def to_greyscale(sRGB1):
     JCh = _sRGB1_to_JCh(sRGB1)
     JCh[..., 1] = 0
     return np.clip(_JCh_to_sRGB1(JCh), 0, 1)
+
 
 _deuter50_space = {"name": "sRGB1+CVD",
                    "cvd_type": "deuteranomaly",
@@ -83,11 +86,14 @@ _prot100_space = {"name": "sRGB1+CVD",
                   "severity": 100}
 _prot100_to_sRGB1 = cspace_converter(_prot100_space, "sRGB1")
 
+
 def _show_cmap(ax, rgb):
     ax.imshow(rgb[np.newaxis, ...], aspect="auto")
 
+
 def _apply_rgb_mat(mat, rgb):
     return np.clip(np.einsum("...ij,...j->...i", mat, rgb), 0, 1)
+
 
 # sRGB corners: a' goes from -37.4 to 45
 AP_LIM = (-38, 46)
@@ -104,6 +110,7 @@ def _setup_Jpapbp_axis(ax):
     ax.set_xlim(*AP_LIM)
     ax.set_ylim(*BP_LIM)
     ax.set_zlim(*JP_LIM)
+
 
 # Adapt a matplotlib colormap to a linearly transformed version -- useful for
 # visualizing how colormaps look given color deficiency.
@@ -134,6 +141,7 @@ class TransformedCMap(matplotlib.colors.Colormap):
     def is_gray(self):
         return False
 
+
 def _vis_axes(fig):
     grid = GridSpec(10, 4,
                     left=0.02,
@@ -152,9 +160,9 @@ def _vis_axes(fig):
             'protanomaly': grid[4, 1],
             'protanopia': grid[5, 1],
 
-#            'lightness': grid[4:6, 1],
-#            'colourfulness': grid[4:6, 2],
-#            'hue': grid[4:6, 3],
+            # 'lightness': grid[4:6, 1],
+            # 'colourfulness': grid[4:6, 2],
+            # 'hue': grid[4:6, 3],
 
             'image0': grid[0:3, 2],
             'image0-cb': grid[0:3, 3],
@@ -188,14 +196,15 @@ def lookup_colormap_by_name(name):
         return cm
     raise ValueError("Can't find colormap {!r}".format(name))
 
+
 class viscm(object):
     def __init__(self, cm, figure=None, uniform_space="CAM02-UCS",
-                 name=None, N=256, N_dots=50, show_gamut=False):
+                 name=None, N_dots=50, show_gamut=False):
         if isinstance(cm, str):
             cm = lookup_colormap_by_name(cm)
         if name is None:
             name = cm.name
-        if figure == None:
+        if figure is None:
             figure = plt.figure()
         self._sRGB1_to_uniform = cspace_converter("sRGB1", uniform_space)
 
@@ -203,6 +212,7 @@ class viscm(object):
         self.figure.suptitle("Colormap evaluation: %s" % (name,), fontsize=24)
 
         axes = _vis_axes(self.figure)
+        cmtype = get_cmap_type(cm)
 
         # ListedColormap is used for many matplotlib builtin colormaps
         # (e.g. viridis) and also what we use in the editor. It's the most
@@ -215,6 +225,7 @@ class viscm(object):
         # relative to the cutoffs between the ListedColormap samples.) So if
         # this is a smooth (large N) ListedColormap, then just use its samples
         # directly:
+        N = cm.N
         if isinstance(cm, ListedColormap) and cm.N >= 100:
             RGB = np.asarray(cm.colors)[:, :3]
             N = RGB.shape[0]
@@ -222,7 +233,7 @@ class viscm(object):
         else:
             x = np.linspace(0, 1, N)
             RGB = cm(x)[:, :3]
-        x_dots = np.linspace(0, 1, N_dots)
+        x_dots = np.linspace(0, 1, N_dots, (cmtype != 'cyclic'))
         RGB_dots = cm(x_dots)[:, :3]
 
         ax = axes['cmap']
@@ -246,17 +257,17 @@ class viscm(object):
         Jpapbp = self._sRGB1_to_uniform(RGB)
 
         def delta_ymax(values):
-            return max(np.max(values) * 1.1, 0)
+            return max(np.max(values)*1.1, 0)
 
         ax = axes['deltas']
         local_deltas = np.sqrt(np.sum(np.diff(Jpapbp, axis=0)**2, axis=-1))
-        local_derivs = (N-1) * local_deltas
+        local_derivs = (N-1)*local_deltas
         ax.plot(x[1:], local_derivs)
         arclength = np.sum(local_deltas)
         rmse = np.std(local_derivs)
         title(ax, "Perceptual derivative")
         label(ax, "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
-              % (arclength, rmse, 100 * rmse / arclength))
+              % (arclength, rmse, 100*rmse / arclength))
         print("Perceptual derivative: %0.5f +/- %0.5f" % (arclength, rmse))
         ax.set_ylim(-delta_ymax(-local_derivs), delta_ymax(local_derivs))
         ax.get_xaxis().set_visible(False)
@@ -270,7 +281,7 @@ class viscm(object):
         ax = axes['lightness-deltas']
         ax.axhline(0, linestyle="--", color="grey")
         lightness_deltas = np.diff(Jpapbp[:, 0])
-        lightness_derivs = (N-1) * lightness_deltas
+        lightness_derivs = (N-1)*lightness_deltas
 
         ax.plot(x[1:], lightness_derivs)
         title(ax, "Perceptual lightness derivative")
@@ -279,7 +290,7 @@ class viscm(object):
         label(ax,
               "Length: %0.1f\nRMS deviation from flat: %0.1f (%0.1f%%)"
               % (lightness_arclength, lightness_rmse,
-                 100 * lightness_rmse / lightness_arclength))
+                 100*lightness_rmse / lightness_arclength))
         print("Perceptual lightness derivative: %0.5f +/- %0.5f"
               % (lightness_arclength, lightness_rmse))
 
@@ -287,19 +298,19 @@ class viscm(object):
                     delta_ymax(lightness_derivs))
         ax.get_xaxis().set_visible(False)
 
-#        ax = axes['lightness']
-#        ax.plot(x, ciecam02.J)
-#        label(ax, "Lightness (J)")
-#        ax.set_ylim(0, 105)
-#
-#        ax = axes['colourfulness']
-#        ax.plot(x, ciecam02.M)
-#        label(ax, "Colourfulness (M)")
-#
-#        ax = axes['hue']
-#        ax.plot(x, ciecam02.h)
-#        label(ax, "Hue angle (h)")
-#        ax.set_ylim(0, 360)
+        # ax = axes['lightness']
+        # ax.plot(x, ciecam02.J)
+        # label(ax, "Lightness (J)")
+        # ax.set_ylim(0, 105)
+
+        # ax = axes['colourfulness']
+        # ax.plot(x, ciecam02.M)
+        # label(ax, "Colourfulness (M)")
+
+        # ax = axes['hue']
+        # ax.plot(x, ciecam02.h)
+        # label(ax, "Hue angle (h)")
+        # ax.set_ylim(0, 360)
 
         def anom(ax, converter, name):
             _show_cmap(ax, np.clip(converter(RGB), 0, 1))
@@ -348,10 +359,11 @@ class viscm(object):
         image_kwargs = []
         example_dir = os.path.join(os.path.dirname(__file__), "examples")
 
-        if(get_cmap_type(cm) in ('diverging', 'cyclic')):
+        if(cmtype in ('diverging', 'cyclic')):
             # Adapted from
-            #    https://github.com/endolith/bipolar-colormap/blob/master/bipolar.py
-            X, Y = np.meshgrid(np.linspace(-2.5, 2.5, int(600/(327/468))), np.linspace(-2, 2, 600))
+            # https://github.com/endolith/bipolar-colormap/blob/master/bipolar.py
+            X, Y = np.meshgrid(np.linspace(-2.5, 2.5, int(600/(327/468))),
+                               np.linspace(-2, 2, 600))
             z = (1-X/2+X**5+Y**3)*np.exp(-X**2-Y**2)
             images.append(z)
             image_kwargs.append({
@@ -365,15 +377,15 @@ class viscm(object):
             image_kwargs.append({})
 
         # Adapted from
-        #   http://matplotlib.org/mpl_examples/images_contours_and_fields/pcolormesh_levels.py
+        # http://matplotlib.org/mpl_examples/images_contours_and_fields/pcolormesh_levels.py
         dx = dy = 0.05
-        y, x = np.mgrid[-5 : 5 + dy : dy, -5 : 10 + dx : dx]
-        z = np.sin(x) ** 10 + np.cos(10 + y * x) + np.cos(x) + 0.2 * y + 0.1 * x
+        y, x = np.mgrid[-5:5+dy:dy, -5:10+dx:dx]
+        z = np.sin(x)**10+np.cos(10+y*x)+np.cos(x)+0.2*y+0.1*x
         images.append(z)
         image_kwargs.append({})
 
         # Peter Kovesi's colormap test image at
-        #   http://peterkovesi.com/projects/colourmaps/colourmaptest.tif
+        # http://peterkovesi.com/projects/colourmaps/colourmaptest.tif
 
         images.append(np.load(os.path.join(example_dir, "colourmaptest.npy")))
 
@@ -453,8 +465,8 @@ def sRGB_gamut_patch(uniform_space, resolution=20):
 
 def sRGB_gamut_Jp_slice(Jp, uniform_space,
                         ap_lim=(-50, 50), bp_lim=(-50, 50), resolution=256):
-    bp_grid, ap_grid = np.mgrid[bp_lim[0] : bp_lim[1] : resolution * 1j,
-                                ap_lim[0] : ap_lim[1] : resolution * 1j]
+    bp_grid, ap_grid = np.mgrid[bp_lim[0]:bp_lim[1]:resolution*1j,
+                                ap_lim[0]:ap_lim[1]:resolution*1j]
     Jp_grid = Jp * np.ones((resolution, resolution))
     Jpapbp = np.concatenate((Jp_grid[:, :, np.newaxis],
                              ap_grid[:, :, np.newaxis],
@@ -517,8 +529,8 @@ def _viscm_editor_axes(fig):
 
 class viscm_editor(object):
     def __init__(self, figure=None, uniform_space="CAM02-UCS",
-                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype='sequential', filter_k=100, fixed=-1, name="new cm", method="CatmulClark"):
-        from .bezierbuilder import SingleBezierCurveModel, TwoBezierCurveModel, ControlPointBuilder, ControlPointModel
+                 min_Jp=15, max_Jp=95, xp=None, yp=None, cmtype='sequential',
+                 fixed=-1, name="new cm", method="CatmulClark"):
         if figure is None:
             figure = plt.figure()
         self.cmtype = cmtype
@@ -536,29 +548,34 @@ class viscm_editor(object):
             self.fixed = [0, 4]
         if xp is None or yp is None:
             if method == "Bezier":
-                xp = {'sequential':[-2.0591553836234482, 59.377014829142524,
-                      43.552546744036135, 4.7670857511283202,
-                      -9.5059638942617539],
-                      "diverging":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
-                      "diverging-continuous":[-9, -15, 43, 30, 0, -20, -30, 20, 1],
+                xp = {'sequential': [-2.0591553836234482, 59.377014829142524,
+                                     43.552546744036135, 4.7670857511283202,
+                                     -9.5059638942617539],
+                      "diverging": [
+                          -9, -15, 43, 30, 0, -20, -30, 20, 1],
+                      "diverging-continuous": [
+                          -9, -15, 43, 30, 0, -20, -30, 20, 1],
                       }[cmtype]
-                yp = {'sequential':[-25.664893617021221, -21.941489361702082,
-                      38.874113475177353, 20.567375886524871,
-                      32.047872340425585],
-                      "diverging":[-5, 20, 20, -21, 0, 21, -38, -20, -5],
-                      "diverging-continuous":[-5, 20, 20, -21, 0, 21, -38, -20, -5]
+                yp = {'sequential': [-25.664893617021221, -21.941489361702082,
+                                     38.874113475177353, 20.567375886524871,
+                                     32.047872340425585],
+                      "diverging": [
+                          -5, 20, 20, -21, 0, 21, -38, -20, -5],
+                      "diverging-continuous": [
+                          -5, 20, 20, -21, 0, 21, -38, -20, -5]
                       }[cmtype]
             if method == "CatmulClark":
-                xp = {'sequential':[-2, 20,23, 5, -9],
-                      "diverging":[-9, -15, -10, 0, 0, 5, 10, 15, 2],
-                      "diverging-continuous":[-9, -5, -1, 0, 0, 5, 10, 15, 2],
+                xp = {'sequential': [-2, 20, 23, 5, -9],
+                      "diverging": [-9, -15, -10, 0, 0, 5, 10, 15, 2],
+                      "diverging-continuous": [-9, -5, -1, 0, 0, 5, 10, 15, 2],
                       }[cmtype]
-                yp = {'sequential':[-25, -21, 18, 10, 12],
-                      "diverging":[-5, -8, -20, -10, 0, 2, 8, 15, 5],
-                      "diverging-continuous":[-5, -8, -20, -10, 0, 2, 8, 15, 5]
+                yp = {'sequential': [-25, -21, 18, 10, 12],
+                      "diverging": [-5, -8, -20, -10, 0, 2, 8, 15, 5],
+                      "diverging-continuous": [
+                          -5, -8, -20, -10, 0, 2, 8, 15, 5]
                       }[cmtype]
-        xy_lim = {"Bezier" : (-100, 100),
-                  "CatmulClark" : (-50, 50)}[self.method]
+        xy_lim = {"Bezier": (-100, 100),
+                  "CatmulClark": (-50, 50)}[self.method]
 
         BezierModel, startJp = {
             'sequential': (SingleBezierCurveModel, 0.5),
@@ -575,11 +592,10 @@ class viscm_editor(object):
                                           self.min_Jp,
                                           self.max_Jp,
                                           uniform_space,
-                                          cmtype=cmtype,
-                                          filter_k=filter_k)
+                                          cmtype=cmtype)
 
-
-        self.highlight_point_model = HighlightPointModel(self.cmap_model, startJp)
+        self.highlight_point_model = HighlightPointModel(self.cmap_model,
+                                                         startJp)
         self.highlight_point_model1 = None
 
         self.bezier_builder = ControlPointBuilder(axes['bezier'],
@@ -591,12 +607,13 @@ class viscm_editor(object):
                                                  uniform_space,
                                                  )
 
-        self.bezier_highlight_point_view = HighlightPoint2DView(axes['bezier'],
-                                   self.highlight_point_model)
+        self.bezier_highlight_point_view = HighlightPoint2DView(
+            axes['bezier'], self.highlight_point_model)
         if cmtype in ("diverging", 'cyclic'):
-            self.highlight_point_model1 = HighlightPointModel(self.cmap_model, 1 - startJp)
-            self.bezier_highlight_point_view1 = HighlightPoint2DView(axes['bezier'],
-                                       self.highlight_point_model1)
+            self.highlight_point_model1 = HighlightPointModel(
+                self.cmap_model, 1 - startJp)
+            self.bezier_highlight_point_view1 = HighlightPoint2DView(
+                axes['bezier'], self.highlight_point_model1)
 
         # draw_pure_hue_angles(axes['bezier'])
         axes['bezier'].set_xlim(*xy_lim)
@@ -628,26 +645,28 @@ class viscm_editor(object):
             elif self.cmtype == "cyclic":
                 usage_hints.append("cyclic")
             xp, yp, fixed = self.control_point_model.get_control_points()
-            extensions = {"min_Jp" : self.min_Jp,
-                          "max_Jp" : self.max_Jp,
-                          "xp" : xp,
-                          "yp" : yp,
-                          "fixed" : fixed,
-                          "filter_k" : self.cmap_model.filter_k,
-                          "cmtype" : self.cmtype,
-                          "uniform_colorspace" : self._uniform_space,
-                          "spline_method" : self.method
-            }
-            json.dump({"content-type": "application/vnd.matplotlib.colormap-v1+json",
+            extensions = {"min_Jp": self.min_Jp,
+                          "max_Jp": self.max_Jp,
+                          "xp": xp,
+                          "yp": yp,
+                          "fixed": fixed,
+                          "filter_k": 100,
+                          "cmtype": self.cmtype,
+                          "uniform_colorspace": self._uniform_space,
+                          "spline_method": self.method
+                          }
+            json.dump({"content-type": (
+                           "application/vnd.matplotlib.colormap-v1+json"),
                        "name": self.name,
-                       "license":"http://creativecommons.org/publicdomain/zero/1.0/",
+                       "license": (
+                           "http://creativecommons.org/publicdomain/zero/1.0"),
                        "usage-hints": usage_hints,
-                       "colorspace" : "sRGB",
-                       "domain" : "continuous",
-                       "colors" : hex_blob,
-                       "extensions" : {"https://matplotlib.org/viscm" : extensions}
-                        },
-                        f, indent=4)
+                       "colorspace": "sRGB",
+                       "domain": "continuous",
+                       "colors": hex_blob,
+                       "extensions": {
+                           "https://matplotlib.org/viscm": extensions}
+                       }, f, indent=4)
         print("Saved")
 
     def export_py(self, filepath):
@@ -666,11 +685,11 @@ class viscm_editor(object):
                                    "Cannot export invalid colormap!")
             return
         array_list = np.array2string(rgb, max_line_width=79,
-                                         prefix='cm_data = ',
-                                         separator=', ', threshold=rgb.size)
+                                     prefix='cm_data = ',
+                                     separator=', ', threshold=rgb.size)
         with open(filepath, 'w') as f:
-            f.write(template.format(**dict(array_list=array_list, type=self.cmtype, name=self.name)))
-
+            f.write(template.format(**dict(array_list=array_list,
+                                           type=self.cmtype, name=self.name)))
 
     def show_viscm(self):
         cm = ListedColormap(self.cmap_model.get_sRGB()[0],
@@ -684,22 +703,17 @@ class viscm_editor(object):
             self.max_Jp = maxval
             self.cmap_model.set_Jp_minmax(self.min_Jp, self.max_Jp)
 
-    def _filter_k_update(self, filter_k):
-        self.cmap_model.set_filter_k(filter_k)
-
 
 class BezierCMapModel(object):
-    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space, filter_k=100, cmtype='sequential'):
+    def __init__(self, bezier_model, min_Jp, max_Jp, uniform_space,
+                 cmtype='sequential'):
         self.bezier_model = bezier_model
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
-        self.filter_k = filter_k
         self.cmtype = cmtype
         self.trigger = Trigger()
         self.Jp_minmax_trigger = Trigger()
         self.Jp_minmax_trigger.add_callback(self.trigger.fire)
-        self.filter_k_trigger = Trigger()
-        self.filter_k_trigger.add_callback(self.trigger.fire)
         self.uniform_to_sRGB1 = cspace_converter(uniform_space, "sRGB1")
         self.bezier_model.trigger.add_callback(self.trigger.fire)
 
@@ -708,18 +722,18 @@ class BezierCMapModel(object):
         self.max_Jp = max_Jp
         self.Jp_minmax_trigger.fire()
 
-    def set_filter_k(self, filter_k):
-        self.filter_k = filter_k
-        self.filter_k_trigger.fire()
-
     def get_Jpapbp_at_point(self, point):
         from scipy.interpolate import interp1d
         Jp, ap, bp = self.get_Jpapbp()
-        Jp, ap, bp = interp1d(np.linspace(0, 1, Jp.size), np.array([Jp, ap, bp]))(point)
+        Jp, ap, bp = interp1d(np.linspace(0, 1, Jp.size),
+                              np.array([Jp, ap, bp]))(point)
         return Jp, ap, bp
 
     def get_Jpapbp(self):
-        at = np.linspace(0, 1, 256 if self.cmtype == 'sequential' else 511)
+        at = np.linspace(0, 1, {'sequential': 256,
+                                'diverging': 511,
+                                'cyclic': 510}[self.cmtype],
+                         (self.cmtype != 'cyclic'))
         ap, bp = self.bezier_model.get_bezier_points_at(at)
         if self.cmtype != 'sequential':
             at = np.abs(1-2*at)
@@ -794,11 +808,11 @@ class HighlightPointBuilder(object):
         self.canvas = self.ax.figure.canvas
         self._in_drag = False
 
-        self.marker_line_a = self.ax.axhline(highlight_point_model_a.get_point(),
-                                           linewidth=3, color="r")
+        self.marker_line_a = self.ax.axhline(
+            highlight_point_model_a.get_point(), linewidth=3, color="r")
         if self.highlight_point_model_b:
-            self.marker_line_b = self.ax.axhline(highlight_point_model_b.get_point(),
-                                           linewidth=3, color="r")
+            self.marker_line_b = self.ax.axhline(
+                highlight_point_model_b.get_point(), linewidth=3, color="r")
 
         self.canvas.mpl_connect("button_press_event", self._on_button_press)
         self.canvas.mpl_connect("motion_notify_event", self._on_motion)
@@ -951,15 +965,25 @@ class Colormap(object):
                     data = json.loads(f.read())
                     self.name = data["name"]
                     # If extensions are available, load everything
-                    if "extensions" in data and "https://matplotlib.org/viscm" in data["extensions"]:
+                    if("extensions" in data and
+                       "https://matplotlib.org/viscm" in data["extensions"]):
                         self.can_edit = True
-                        self.params = {k:v for k,v in data["extensions"]["https://matplotlib.org/viscm"].items()
-                                if k in {"xp", "yp", "min_Jp", "max_Jp", "fixed", "filter_k", "uniform_space"}}
+                        self.params = {
+                            k: v for k, v in data[
+                                "extensions"][
+                                    "https://matplotlib.org/viscm"].items()
+                            if k in {"xp", "yp", "min_Jp", "max_Jp", "fixed",
+                                     "uniform_space"}}
                         self.params["name"] = self.name
-                        self.cmtype = data["extensions"]["https://matplotlib.org/viscm"]["cmtype"]
-                        self.cmtype = 'sequential' if self.cmtype == 'linear' else self.cmtype
-                        self.method = data["extensions"]["https://matplotlib.org/viscm"]["spline_method"]
-                        self.uniform_space = data["extensions"]["https://matplotlib.org/viscm"]["uniform_colorspace"]
+                        self.cmtype = data["extensions"][
+                            "https://matplotlib.org/viscm"]["cmtype"]
+                        self.cmtype = ('sequential' if self.cmtype == 'linear'
+                                       else self.cmtype)
+                        self.method = data["extensions"][
+                            "https://matplotlib.org/viscm"]["spline_method"]
+                        self.uniform_space = data["extensions"][
+                            "https://matplotlib.org/viscm"][
+                                "uniform_colorspace"]
 
                         # As original method uses real colors instead of floats
                         # which obviously have rounding errors, use params
@@ -974,12 +998,22 @@ class Colormap(object):
                     else:
                         colors = data["colors"]
                         if(colors != "N/A"):
-                            colors = [colors[i:i + 6] for i in range(0, len(colors), 6)]
-                            colors = [[int(c[2 * i:2 * i + 2], 16) / 255 for i in range(3)] for c in colors]
+                            colors = [colors[i:i+6]
+                                      for i in range(0, len(colors), 6)]
+                            colors = [[int(c[2*i:2*i+2], 16)/255
+                                       for i in range(3)] for c in colors]
                             self.cmap = ListedColormap(colors, self.name)
                         else:
                             sys.exit("Cannot load invalid colormap without "
                                      "proper extensions!")
+            elif extension == '.txt':
+                self.can_edit = False
+                rgb = np.genfromtxt(path, dtype=None, comments='//',
+                                    encoding=None)
+                colorlist = rgb.tolist()
+                self.cmap = ListedColormap(
+                    colorlist, os.path.basename(path), N=len(colorlist))
+                self.name = self.cmap.name
 
             else:
                 sys.exit("Unsupported filetype")
@@ -1030,11 +1064,16 @@ def main(argv=None):
                         "assumed sRGB viewing conditions) from their bezier "
                         "curves.")
     parser.add_argument("-t", "--type", type=str,
-                        default="sequential", choices=["sequential", "diverging", "diverging-continuous"],
-                        help="Choose a colormap type. Supported options are 'sequential', 'diverging', and 'diverging-continuous")
+                        default="sequential",
+                        choices=["sequential", "diverging", 'cyclic'],
+                        help=("Choose a colormap type. Supported options are "
+                              "'sequential', 'diverging', and 'cyclic'"))
     parser.add_argument("-m", "--method", type=str,
-                        default="CatmulClark", choices=["Bezier", "CatmulClark"],
-                        help="Choose a spline construction method. 'CatmulClark' is the default, but you may choose the legacy option 'Bezier'")
+                        default="CatmulClark", choices=["Bezier",
+                                                        "CatmulClark"],
+                        help=("Choose a spline construction method. "
+                              "'CatmulClark' is the default, but you may "
+                              "choose the legacy option 'Bezier'"))
     parser.add_argument("--save", metavar="FILE",
                         default=None,
                         help="Immediately save visualization to a file "
@@ -1050,14 +1089,14 @@ def main(argv=None):
     if args.colormap:
         cm.load(args.colormap)
 
-
     # Easter egg! I keep typing 'show' instead of 'view' so accept both
     if args.action in ("view", "show"):
         if cm is None:
             sys.exit("Please specify a colormap")
         fig = plt.figure()
         figureCanvas = FigureCanvas(fig)
-        v = viscm(cm.cmap, name=cm.name, figure=fig, uniform_space=cm.uniform_space)
+        v = viscm(cm.cmap, name=cm.name, figure=fig,
+                  uniform_space=cm.uniform_space)
         mainwindow = ViewerWindow(figureCanvas, v, cm.name)
         if args.save is not None:
             v.figure.set_size_inches(20, 12)
@@ -1068,7 +1107,8 @@ def main(argv=None):
         # Hold a reference so it doesn't get GC'ed
         fig = plt.figure()
         figureCanvas = FigureCanvas(fig)
-        v = viscm_editor(figure=fig, uniform_space=cm.uniform_space, cmtype=cm.cmtype, method=cm.method, **cm.params)
+        v = viscm_editor(figure=fig, uniform_space=cm.uniform_space,
+                         cmtype=cm.cmtype, method=cm.method, **cm.params)
         mainwindow = EditorWindow(figureCanvas, v)
     else:
         raise RuntimeError("can't happen")
@@ -1095,11 +1135,14 @@ def main(argv=None):
 
     app.exec_()
 
+
 def about():
     QW.QMessageBox.about(None, "VISCM",
-                                "Copyright (C) 2015-2016 Nathaniel Smith\n" +
-                                "Copyright (C) 2015-2016 Stéfan van der Walt\n"
-                                "Copyright (C) 2016 Hankun Zhao")
+                         ("Copyright (C) 2015-2016 Nathaniel Smith\n"
+                          "Copyright (C) 2015-2016 Stéfan van der Walt\n"
+                          "Copyright (C) 2016 Hankun Zhao\n"
+                          "Copyright (C) 2020-2021 Ellert van der Velden"))
+
 
 class ViewerWindow(QW.QMainWindow):
     def __init__(self, figurecanvas, viscm, cmapname, parent=None):
@@ -1110,13 +1153,13 @@ class ViewerWindow(QW.QMainWindow):
 
         file_menu = QW.QMenu('&File', self)
         file_menu.addAction('&Save', self.save,
-                                QC.Qt.CTRL + QC.Qt.Key_S)
+                            QC.Qt.CTRL + QC.Qt.Key_S)
         file_menu.addAction('&Quit', self.fileQuit,
-                                QC.Qt.CTRL + QC.Qt.Key_Q)
+                            QC.Qt.CTRL + QC.Qt.Key_Q)
 
         options_menu = QW.QMenu('&Options', self)
         options_menu.addAction('&Toggle Gamut', self.toggle_gamut,
-                                QC.Qt.CTRL + QC.Qt.Key_G)
+                               QC.Qt.CTRL + QC.Qt.Key_G)
 
         help_menu = QW.QMenu('&Help', self)
         help_menu.addAction('&About', about)
@@ -1162,14 +1205,14 @@ class EditorWindow(QW.QMainWindow):
 
         file_menu = QW.QMenu('&File', self)
         file_menu.addAction('&Save as...', self.save,
-                                QC.Qt.CTRL + QC.Qt.Key_S)
+                            QC.Qt.CTRL + QC.Qt.Key_S)
         file_menu.addAction("&Export .py", self.export)
         file_menu.addAction('&Quit', self.fileQuit,
-                                QC.Qt.CTRL + QC.Qt.Key_Q)
+                            QC.Qt.CTRL + QC.Qt.Key_Q)
 
         options_menu = QW.QMenu('&Options', self)
         options_menu.addAction('&Load in Viewer', self.loadviewer,
-                                QC.Qt.CTRL + QC.Qt.Key_V)
+                               QC.Qt.CTRL + QC.Qt.Key_V)
 
         help_menu = QW.QMenu('&Help', self)
         help_menu.addAction('&About', about)
@@ -1198,11 +1241,12 @@ class EditorWindow(QW.QMainWindow):
         self.max_num.valueChanged.connect(self.updatejp)
 
         # Create options layout for the bottom of the viewer
-        options_layout = QW.QHBoxLayout()
+        options_layout = GL.QHBoxLayout()
 
         # Create layout for setting the colormap independent options
         options_layoutL = QW.QFormLayout()
         options_layout.addLayout(options_layoutL)
+        options_layout.addSeparator()
 
         # Add colormap independent options
         # Cmap type box
@@ -1275,13 +1319,16 @@ class EditorWindow(QW.QMainWindow):
         addL0_Action.setToolTip("Add point at lowest lightness possible. "
                                 "For diverging colormaps, this replaces the "
                                 "central fixed point.")
-        addL0_Action.triggered.connect(lambda: self.viscm_editor.bezier_builder.add_point(0, 0))
+        addL0_Action.triggered.connect(
+            lambda: self.viscm_editor.bezier_builder.add_point(0, 0))
 
         addL100_Action = QW.QAction("Add point at Jp=99.99871678", self)
         addL100_Action.setToolTip("Add point at highest lightness possible. "
                                   "For diverging colormaps, this replaces the "
                                   "central fixed point.")
-        addL100_Action.triggered.connect(lambda: self.viscm_editor.bezier_builder.add_point(-1.91200895, -1.15144878))
+        addL100_Action.triggered.connect(
+            lambda: self.viscm_editor.bezier_builder.add_point(-1.91200895,
+                                                               -1.15144878))
 
         self.toolbar = self.addToolBar('Tools')
         self.toolbar.addAction(self.moveAction)
@@ -1375,7 +1422,8 @@ class EditorWindow(QW.QMainWindow):
                                 QW.QSizePolicy.Expanding)
         newcanvas.updateGeometry()
 
-        newwindow = ViewerWindow(newcanvas, v, self.viscm_editor.name, parent=self)
+        newwindow = ViewerWindow(newcanvas, v, self.viscm_editor.name,
+                                 parent=self)
         newwindow.resize(800, 600)
 
         newwindow.show()

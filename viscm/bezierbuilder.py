@@ -1,17 +1,17 @@
 # coding=utf8
-# BézierBuilder
+# BezierBuilder
 #
 # Copyright (c) 2013, Juan Luis Cano Rodríguez <juanlu001@gmail.com>
 # All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without modification,
-# are permitted provided that the following conditions are met:
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
 #    * Redistributions of source code must retain the above copyright notice,
 #      this list of conditions and the following disclaimer.
-#    * Redistributions in binary form must reproduce the above copyright notice,
-#      this list of conditions and the following disclaimer in the documentation
-#      and/or other materials provided with the distribution.
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -25,7 +25,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""BézierBuilder, an interactive Bézier curve explorer.
+"""BezierBuilder, an interactive Bezier curve explorer.
 
 Just run it with
 
@@ -36,11 +36,11 @@ from __future__ import division, print_function, absolute_import
 
 import numpy as np
 from math import factorial
-from scipy import signal
 
 from matplotlib.lines import Line2D
-from matplotlib.backends.qt_compat import QtGui, QtCore
+from qtpy import QtCore as QC
 from .minimvc import Trigger
+
 
 class ControlPointModel(object):
     def __init__(self, xp, yp, cmtype, fixed=None):
@@ -124,12 +124,12 @@ class ControlPointBuilder(object):
         if event.inaxes != self.ax:
             return
         res, ind = self.control_polygon.contains(event)
-        if res and modkey == QtCore.Qt.NoModifier:
+        if res and modkey == QC.Qt.NoModifier:
             self._index = ind["ind"][0]
-        if res and (modkey == QtCore.Qt.ControlModifier or self.mode == "remove"):
+        if res and (modkey == QC.Qt.ControlModifier or self.mode == "remove"):
             # Control-click deletes
             self.control_point_model.remove_point(ind["ind"][0])
-        if (modkey == QtCore.Qt.ShiftModifier or self.mode == "add"):
+        if (modkey == QC.Qt.ShiftModifier or self.mode == "add"):
             self.add_point(event.xdata, event.ydata)
 
     def add_point(self, xdata, ydata):
@@ -140,8 +140,10 @@ class ControlPointBuilder(object):
         # Point at lowest lightness
         if((xdata, ydata) == (0, 0)):
             if(self.cmap_model.cmtype != 'sequential'):
-                self.control_point_model._xp[self.control_point_model._fixed[0]] = 0
-                self.control_point_model._yp[self.control_point_model._fixed[0]] = 0
+                self.control_point_model._xp[
+                    self.control_point_model._fixed[0]] = 0
+                self.control_point_model._yp[
+                    self.control_point_model._fixed[0]] = 0
                 self.control_point_model.trigger.fire()
                 return
             elif(self.cmap_model.min_Jp < self.cmap_model.max_Jp):
@@ -152,8 +154,10 @@ class ControlPointBuilder(object):
         # Point at highest lightness
         elif((xdata, ydata) == (-1.91200895, -1.15144878)):
             if(self.cmap_model.cmtype != 'sequential'):
-                self.control_point_model._xp[self.control_point_model._fixed[1]] = -1.91200895
-                self.control_point_model._yp[self.control_point_model._fixed[1]] = -1.15144878
+                self.control_point_model._xp[
+                    self.control_point_model._fixed[1]] = -1.91200895
+                self.control_point_model._yp[
+                    self.control_point_model._fixed[1]] = -1.15144878
                 self.control_point_model.trigger.fire()
                 return
             elif(self.cmap_model.min_Jp < self.cmap_model.max_Jp):
@@ -168,6 +172,11 @@ class ControlPointBuilder(object):
             for i in range(len(xp)-1):
                 lines.append(list(zip(np.linspace(xp[i], xp[i+1], 100),
                                       np.linspace(yp[i], yp[i+1], 100))))
+
+            # If cyclic colormap is used, add line between last and first point
+            if(self.cmap_model.cmtype == 'cyclic'):
+                lines.append(list(zip(np.linspace(xp[-1], xp[0], 100),
+                                      np.linspace(yp[-1], yp[0], 100))))
 
             # Adding a new point.
             # Find the closest point on any of the lines calculated above
@@ -190,7 +199,6 @@ class ControlPointBuilder(object):
 
         # Add new point
         self.control_point_model.add_point(best_i, xdata, ydata)
-
 
     def on_button_release(self, event):
         if event.button != 1:
@@ -238,6 +246,7 @@ def compute_bezier_points(xp, yp, at, method, grid=1000):
 
     return method(list(zip(xp, yp)), at_t).T
 
+
 def compute_arc_length(xp, yp, method, grid=1000):
     t = np.linspace(0, 1, grid)
     x, y = method(list(zip(xp, yp)), t).T
@@ -249,6 +258,7 @@ def compute_arc_length(xp, yp, method, grid=1000):
     arclength_deltas[0] = 0
     np.hypot(x_deltas, y_deltas, out=arclength_deltas[1:])
     return np.cumsum(arclength_deltas)
+
 
 class SingleBezierCurveModel(object):
     def __init__(self, control_point_model, method="CatmulClark"):
@@ -274,7 +284,7 @@ class SingleBezierCurveModel(object):
 
 class TwoBezierCurveModel(object):
     def __init__(self, control_point_model, method="CatmulClark"):
-        self.num = 511
+        self.num = 511 if control_point_model._cmtype == 'diverging' else 510
         self.method = eval(method)
         self.control_point_model = control_point_model
         x, y = self.get_bezier_points()
@@ -283,7 +293,8 @@ class TwoBezierCurveModel(object):
         self.trigger.add_callback(self._refresh)
 
     def get_bezier_points(self):
-        return self.get_bezier_points_at(np.linspace(0, 1, self.num))
+        return self.get_bezier_points_at(np.linspace(
+            0, 1, self.num, (self.control_point_model._cmtype == 'diverging')))
 
     def get_bezier_points_at(self, at, grid=1000):
         at = np.asarray(at)
@@ -297,8 +308,8 @@ class TwoBezierCurveModel(object):
         assert fixed is not None
 
         if self.control_point_model._cmtype == 'diverging':
-            low_xp = xp[:fixed + 1]
-            low_yp = yp[:fixed + 1]
+            low_xp = xp[:fixed+1]
+            low_yp = yp[:fixed+1]
             high_xp = xp[fixed:]
             high_yp = yp[fixed:]
         else:
@@ -312,16 +323,44 @@ class TwoBezierCurveModel(object):
         low_al = compute_arc_length(low_xp, low_yp, self.method, grid).max()
         high_al = compute_arc_length(high_xp, high_yp, self.method, grid).max()
 
-        sf = min(low_al, high_al) / max(low_al, high_al)
+        sf = min(low_al, high_al)/max(low_al, high_al)
 
-        high_at = at[high_mask]
-        low_at = at[low_mask]
-        if high_al < low_al:
-            high_at = high_at * 2 - 1
-            low_at = (0.5 - (0.5 - low_at) * sf) * 2
+        if self.control_point_model._cmtype == 'diverging':
+            high_at = at[high_mask]
+            low_at = at[low_mask]
+
+            if high_al < low_al:
+                high_at = high_at*2-1
+                low_at = (0.5-(0.5-low_at)*sf)*2
+            else:
+                high_at = (0.5+(high_at-0.5)*sf)*2-1
+                low_at = low_at*2
         else:
-            high_at = (0.5 + (high_at - 0.5) * sf) * 2 - 1
-            low_at = low_at * 2
+            # For cyclic colormaps, keep moving all nodes in between the fixed
+            # nodes towards the center of the fixed nodes, until the difference
+            # between the arclengths of both sides is negligible.
+            while not np.isclose(sf, 1):
+                xf1 = xp[fixed[0]]
+                yf1 = yp[fixed[0]]
+                xf2 = xp[fixed[1]]
+                yf2 = yp[fixed[1]]
+                mid_xf = xf1+(xf2-xf1)/2
+                mid_yf = yf1+(yf2-yf1)/2
+
+                if high_al < low_al:
+                    low_xp[1:-1] = (np.array(low_xp[1:-1])-mid_xf)*sf+mid_xf
+                    low_yp[1:-1] = (np.array(low_yp[1:-1])-mid_yf)*sf+mid_yf
+                else:
+                    high_xp[1:-1] = (np.array(high_xp[1:-1])-mid_xf)*sf+mid_xf
+                    high_yp[1:-1] = (np.array(high_yp[1:-1])-mid_yf)*sf+mid_yf
+
+                low_al = compute_arc_length(low_xp, low_yp, self.method, grid).max()
+                high_al = compute_arc_length(high_xp, high_yp, self.method, grid).max()
+
+                sf = min(low_al, high_al)/max(low_al, high_al)
+
+            high_at = at[high_mask]*2-1
+            low_at = at[low_mask]*2
 
         low_points = compute_bezier_points(low_xp, low_yp,
                                            low_at, self.method, grid=grid)
@@ -358,22 +397,18 @@ class BezierCurveView(object):
 # but reimplementing it ourself lets us avoid pulling in a dependency
 # scipy just for that one function.
 def binom(n, k):
-    return factorial(n) * 1.0 / (factorial(k) * factorial(n - k))
+    return factorial(n)*1/(factorial(k)*factorial(n-k))
 
-def Bernstein(n, k):
+
+def Bernstein(n, k, x):
     """Bernstein polynomial.
 
     """
-    coeff = binom(n, k)
-
-    def _bpoly(x):
-        return coeff * x ** k * (1 - x) ** (n - k)
-
-    return _bpoly
+    return(binom(n, k)*x**k*(1-x)**(n-k))
 
 
 def Bezier(points, at):
-    """Build Bézier curve from points.
+    """Build Bezier curve from points.
     Deprecated. CatmulClark builds nicer splines
     """
     at = np.asarray(at)
@@ -381,18 +416,19 @@ def Bezier(points, at):
     N = len(points)
     curve = np.zeros((at_flat.shape[0], 2))
     for ii in range(N):
-        curve += np.outer(Bernstein(N - 1, ii)(at_flat), points[ii])
-    return curve.reshape(at.shape + (2,))
+        curve += np.outer(Bernstein(N-1, ii, at_flat), points[ii])
+    return curve.reshape((*at.shape, 2))
+
 
 def CatmulClark(points, at):
     points = np.asarray(points)
 
     while len(points) < len(at):
-        new_p = np.zeros((2 * len(points), 2))
+        new_p = np.zeros((2*len(points), 2))
         new_p[0] = points[0]
         new_p[-1] = points[-1]
-        new_p[1:-2:2] = 3/4. * points[:-1] + 1/4. * points[1:]
-        new_p[2:-1:2] = 1/4. * points[:-1] + 3/4. * points[1:]
+        new_p[1:-2:2] = 3/4*points[:-1]+1/4*points[1:]
+        new_p[2:-1:2] = 1/4*points[:-1]+3/4*points[1:]
         points = new_p
     xp, yp = zip(*points)
     xp = np.interp(at, np.linspace(0, 1, len(xp)), xp)
