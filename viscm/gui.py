@@ -142,7 +142,7 @@ class TransformedCMap(matplotlib.colors.Colormap):
         return False
 
 
-def _vis_axes(fig):
+def _vis_axes(fig, cmtype):
     grid = GridSpec(10, 4,
                     left=0.02,
                     right=0.98,
@@ -168,12 +168,16 @@ def _vis_axes(fig):
             'image0-cb': grid[0:3, 3],
             'image1': grid[3:6, 2],
             'image1-cb': grid[3:6, 3],
-            'image2': grid[6:8, 2:],
-            'image2-cb': grid[8:, 2:]
             }
 
     axes = dict([(key, fig.add_subplot(value))
                  for (key, value) in axes.items()])
+    if(cmtype == 'cyclic'):
+        axes['image2'] = fig.add_subplot(grid[6:, 2], projection='polar')
+        axes['image2-cb'] = fig.add_subplot(grid[6:, 3], projection='polar')
+    else:
+        axes['image2'] = fig.add_subplot(grid[6:8, 2:])
+        axes['image2-cb'] = fig.add_subplot(grid[8:, 2:])
     axes['gamut'] = fig.add_subplot(grid[6:, :2], projection='3d')
     return axes
 
@@ -211,8 +215,8 @@ class viscm(object):
         self.figure = figure
         self.figure.suptitle("Colormap evaluation: %s" % (name,), fontsize=24)
 
-        axes = _vis_axes(self.figure)
         cmtype = get_cmap_type(cm)
+        axes = _vis_axes(self.figure, cmtype)
 
         # ListedColormap is used for many matplotlib builtin colormaps
         # (e.g. viridis) and also what we use in the editor. It's the most
@@ -359,7 +363,7 @@ class viscm(object):
         image_kwargs = []
         example_dir = os.path.join(os.path.dirname(__file__), "examples")
 
-        if(cmtype in ('diverging', 'cyclic')):
+        if cmtype in ('diverging', 'cyclic'):
             # Adapted from
             # https://github.com/endolith/bipolar-colormap/blob/master/bipolar.py
             X, Y = np.meshgrid(np.linspace(-2.5, 2.5, int(600/(327/468))),
@@ -376,20 +380,37 @@ class viscm(object):
                     dtype=int))
             image_kwargs.append({})
 
-        # Adapted from
-        # http://matplotlib.org/mpl_examples/images_contours_and_fields/pcolormesh_levels.py
-        dx = dy = 0.05
-        y, x = np.mgrid[-5:5+dy:dy, -5:10+dx:dx]
-        z = np.sin(x)**10+np.cos(10+y*x)+np.cos(x)+0.2*y+0.1*x
-        images.append(z)
-        image_kwargs.append({})
+        if(cmtype == 'cyclic'):
+            x = np.linspace(-1, 1, 858)
+            y = np.linspace(-1, 1, 600)
+            angle = np.empty((600, 858))
+            for i, yi in enumerate(y):
+                angle[i] = np.arctan2(yi, -x)
+            images.append(angle)
+            image_kwargs.append({'interpolation': 'nearest'})
 
-        # Peter Kovesi's colormap test image at
-        # http://peterkovesi.com/projects/colourmaps/colourmaptest.tif
+            r_min = 0.1
+            r_max = 1.0
+            r, t = np.mgrid[r_min:r_max:600j, 0:2*np.pi:600j]
+            r_norm = (r-r_min)/(r_max-r_min)
+            vals = (np.pi/5)*r_norm**2*np.sin(50*t)+t
+            vals = np.mod(vals, 2*np.pi)
+            images.append((t, r, vals))
+            image_kwargs.append({})
+        else:
+            # Adapted from
+            # http://matplotlib.org/mpl_examples/images_contours_and_fields/pcolormesh_levels.py
+            dx = dy = 0.05
+            y, x = np.mgrid[-5:5+dy:600j, -5:10+dx:858j]
+            z = np.sin(x)**10+np.cos(10+y*x)+np.cos(x)+0.2*y+0.1*x
+            images.append(z)
+            image_kwargs.append({})
 
-        images.append(np.load(os.path.join(example_dir, "colourmaptest.npy")))
-
-        image_kwargs.append({})
+            # Peter Kovesi's colormap test image at
+            # http://peterkovesi.com/projects/colourmaps/colourmaptest.tif
+            images.append(np.load(os.path.join(example_dir,
+                                               "colourmaptest.npy")))
+            image_kwargs.append({})
 
         def _deuter_transform(RGBA):
             # clipping, alpha handling
@@ -399,15 +420,26 @@ class viscm(object):
         deuter_cm = TransformedCMap(_deuter_transform, cm)
 
         for i, (image, kwargs) in enumerate(zip(images, image_kwargs)):
-            ax = axes['image%i' % (i,)]
-            ax.imshow(image, cmap=cm, **kwargs)
-            ax.get_xaxis().set_visible(False)
-            ax.get_yaxis().set_visible(False)
+            if(cmtype == 'cyclic' and i == 2):
+                ax = axes['image%i' % (i,)]
+                ax.pcolormesh(*image, cmap=cm, **kwargs)
+                ax.get_xaxis().set_visible(False)
+                ax.get_yaxis().set_visible(False)
 
-            ax_cb = axes['image%i-cb' % (i,)]
-            ax_cb.imshow(image, cmap=deuter_cm, **kwargs)
-            ax_cb.get_xaxis().set_visible(False)
-            ax_cb.get_yaxis().set_visible(False)
+                ax_cb = axes['image%i-cb' % (i,)]
+                ax_cb.pcolormesh(*image, cmap=deuter_cm, **kwargs)
+                ax_cb.get_xaxis().set_visible(False)
+                ax_cb.get_yaxis().set_visible(False)
+            else:
+                ax = axes['image%i' % (i,)]
+                ax.imshow(image, cmap=cm, **kwargs)
+                ax.get_xaxis().set_visible(False)
+                ax.get_yaxis().set_visible(False)
+
+                ax_cb = axes['image%i-cb' % (i,)]
+                ax_cb.imshow(image, cmap=deuter_cm, **kwargs)
+                ax_cb.get_xaxis().set_visible(False)
+                ax_cb.get_yaxis().set_visible(False)
 
         axes['image0'].set_title("Sample images")
         axes['image0-cb'].set_title("Moderate deuter.")
@@ -515,12 +547,22 @@ def draw_sRGB_gamut_Jp_slice(ax, Jp, uniform_space,
 #     return sRGB
 
 
-def _viscm_editor_axes(fig):
-    grid = GridSpec(1, 2,
-                    width_ratios=[9, 1],
-                    height_ratios=[50])
-    axes = {'bezier': grid[0, 0],
-            'cm': grid[0, 1]}
+def _viscm_editor_axes(fig, cmtype):
+    # Create three axes if cyclic
+    if(cmtype == 'cyclic'):
+        grid = GridSpec(1, 3,
+                        width_ratios=[8, 1, 1],
+                        height_ratios=[50])
+        axes = {'bezier': grid[0, 0],
+                'cm': grid[0, 1],
+                'cm_s': grid[0, 2]}
+    # Otherwise, draw two
+    else:
+        grid = GridSpec(1, 2,
+                        width_ratios=[9, 1],
+                        height_ratios=[50])
+        axes = {'bezier': grid[0, 0],
+                'cm': grid[0, 1]}
 
     axes = dict([(key, fig.add_subplot(value))
                  for (key, value) in axes.items()])
@@ -538,7 +580,7 @@ class viscm_editor(object):
         self._uniform_space = uniform_space
         self.name = name
         self.figure = figure
-        axes = _viscm_editor_axes(self.figure)
+        axes = _viscm_editor_axes(self.figure, self.cmtype)
         self.min_Jp = min_Jp
         self.max_Jp = max_Jp
         self.fixed = fixed
@@ -611,7 +653,7 @@ class viscm_editor(object):
             axes['bezier'], self.highlight_point_model)
         if cmtype in ("diverging", 'cyclic'):
             self.highlight_point_model1 = HighlightPointModel(
-                self.cmap_model, 1 - startJp)
+                self.cmap_model, 1-startJp)
             self.bezier_highlight_point_view1 = HighlightPoint2DView(
                 axes['bezier'], self.highlight_point_model1)
 
@@ -624,6 +666,13 @@ class viscm_editor(object):
             axes['cm'],
             self.highlight_point_model,
             self.highlight_point_model1)
+        if(cmtype == 'cyclic'):
+            self.cmap_view_s = CMapView(axes['cm_s'], self.cmap_model, True)
+            self.cmap_highlighter_s = HighlightPointBuilder(
+                axes['cm_s'],
+                self.highlight_point_model,
+                self.highlight_point_model1,
+                True)
         self.axes = axes
 
     def save_colormap(self, filepath):
@@ -634,7 +683,7 @@ class viscm_editor(object):
                 hex_blob = ""
                 for color in rgb:
                     for component in color:
-                        hex_blob += "%02x" % (int(round(component * 255)))
+                        hex_blob += "%02x" % (int(round(component*255)))
             else:
                 hex_blob = "N/A"
             usage_hints = ["red-green-colorblind-safe", "greyscale-safe"]
@@ -677,7 +726,7 @@ class viscm_editor(object):
         cm_type = "{type}"
 
         cm_data = {array_list}
-        test_cm = ListedColormap(cm_data, name="{name}")
+        cmap = ListedColormap(cm_data, name="{name}", N=len(cm_data))
         ''')
         rgb, _ = self.cmap_model.get_sRGB()
         if not np.all(np.isfinite(rgb)):
@@ -688,8 +737,8 @@ class viscm_editor(object):
                                      prefix='cm_data = ',
                                      separator=', ', threshold=rgb.size)
         with open(filepath, 'w') as f:
-            f.write(template.format(**dict(array_list=array_list,
-                                           type=self.cmtype, name=self.name)))
+            f.write(template.format(array_list=array_list, type=self.cmtype,
+                                    name=self.name)[1:])
 
     def show_viscm(self):
         cm = ListedColormap(self.cmap_model.get_sRGB()[0],
@@ -729,7 +778,7 @@ class BezierCMapModel(object):
                               np.array([Jp, ap, bp]))(point)
         return Jp, ap, bp
 
-    def get_Jpapbp(self):
+    def get_Jpapbp(self, shifted=False):
         at = np.linspace(0, 1, {'sequential': 256,
                                 'diverging': 511,
                                 'cyclic': 510}[self.cmtype],
@@ -738,11 +787,20 @@ class BezierCMapModel(object):
         if self.cmtype != 'sequential':
             at = np.abs(1-2*at)
         Jp = (self.max_Jp - self.min_Jp) * at + self.min_Jp
-        return Jp, ap, bp
+        if shifted:
+            Jp_s = list(Jp[255:])
+            Jp_s.extend(Jp[:255])
+            ap_s = list(ap[255:])
+            ap_s.extend(ap[:255])
+            bp_s = list(bp[255:])
+            bp_s.extend(bp[:255])
+            return(Jp_s, ap_s, bp_s)
+        else:
+            return(Jp, ap, bp)
 
-    def get_sRGB(self):
+    def get_sRGB(self, shifted=False):
         # Return sRGB and out-of-gamut mask
-        Jp, ap, bp = self.get_Jpapbp()
+        Jp, ap, bp = self.get_Jpapbp(shifted)
         sRGB = self.uniform_to_sRGB1(np.column_stack((Jp, ap, bp)))
         oog = np.any((sRGB > 1) | (sRGB < 0), axis=-1)
         sRGB[oog, :] = np.nan
@@ -750,9 +808,10 @@ class BezierCMapModel(object):
 
 
 class CMapView(object):
-    def __init__(self, ax, cmap_model):
+    def __init__(self, ax, cmap_model, shifted=False):
         self.ax = ax
         self.cmap_model = cmap_model
+        self.shifted = shifted
 
         rgb_display, oog_display = self._drawable_arrays()
         self.image = self.ax.imshow(rgb_display, extent=(0, 0.2, 0, 1),
@@ -767,7 +826,7 @@ class CMapView(object):
         self.cmap_model.trigger.add_callback(self._refresh)
 
     def _drawable_arrays(self):
-        rgb, oog = self.cmap_model.get_sRGB()
+        rgb, oog = self.cmap_model.get_sRGB(self.shifted)
         rgb_display = rgb[:, np.newaxis, :]
         oog_display = np.empty((rgb.shape[0], 1, 4))
         oog_display[...] = [0, 0, 0, 0]
@@ -800,10 +859,12 @@ class HighlightPointModel(object):
 
 
 class HighlightPointBuilder(object):
-    def __init__(self, ax, highlight_point_model_a, highlight_point_model_b):
+    def __init__(self, ax, highlight_point_model_a, highlight_point_model_b,
+                 shifted=False):
         self.ax = ax
-        self.highlight_point_model_b = highlight_point_model_b
         self.highlight_point_model_a = highlight_point_model_a
+        self.highlight_point_model_b = highlight_point_model_b
+        self.shifted = shifted
 
         self.canvas = self.ax.figure.canvas
         self._in_drag = False
@@ -829,15 +890,19 @@ class HighlightPointBuilder(object):
         if event.button != 1:
             return
         self._in_drag = True
-        self.highlight_point_model_a.set_point(event.ydata)
+        self.highlight_point_model_a.set_point(
+            (event.ydata+0.5*self.shifted) % 1)
         if self.highlight_point_model_b:
-            self.highlight_point_model_b.set_point(1 - event.ydata)
+            self.highlight_point_model_b.set_point(
+                (1-event.ydata+0.5*self.shifted) % 1)
 
     def _on_motion(self, event):
         if self._in_drag and event.ydata is not None:
-            self.highlight_point_model_a.set_point(event.ydata)
+            self.highlight_point_model_a.set_point(
+                (event.ydata+0.5*self.shifted) % 1)
             if self.highlight_point_model_b:
-                self.highlight_point_model_b.set_point(1 - event.ydata)
+                self.highlight_point_model_b.set_point(
+                    (1-event.ydata+0.5*self.shifted) % 1)
 
     def _on_button_release(self, event):
         if event.button != 1:
@@ -846,9 +911,12 @@ class HighlightPointBuilder(object):
 
     def _refresh(self):
         point = self.highlight_point_model_a.get_point()
-        self.marker_line_a.set_data([0, 1], [point, point])
+        self.marker_line_a.set_data([0, 1], [(point+0.5*self.shifted) % 1,
+                                             (point+0.5*self.shifted) % 1])
         if self.highlight_point_model_b:
-            self.marker_line_b.set_data([0, 1], [1 - point, 1 - point])
+            self.marker_line_b.set_data([0, 1],
+                                        [(1-point+0.5*self.shifted) % 1,
+                                         (1-point+0.5*self.shifted) % 1])
         self.canvas.draw()
 
 

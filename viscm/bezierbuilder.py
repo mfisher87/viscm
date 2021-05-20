@@ -44,7 +44,7 @@ from .minimvc import Trigger
 
 class ControlPointModel(object):
     def __init__(self, xp, yp, cmtype, fixed=None):
-        # fixed is either None (if no point is fixed) or and index of a fixed
+        # fixed is either None (if no point is fixed) or an index of a fixed
         # point
         self._xp = list(xp)
         self._yp = list(yp)
