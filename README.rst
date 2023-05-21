@@ -30,4 +30,4 @@ Dependencies:
   * NumPy
 
 License:
-  MIT, see LICENSE.txt for details.
+  MIT, see `LICENSE <LICENSE>`__ for details.
