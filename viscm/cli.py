@@ -2,7 +2,7 @@ import sys
 
 import matplotlib.pyplot as plt
 
-from . import gui
+from viscm import gui
 
 
 def cli():
@@ -141,3 +141,7 @@ def cli():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     app.exec_()
+
+
+if __name__ == "__main__":
+    cli()
