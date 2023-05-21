@@ -14,7 +14,8 @@ resulting visualizations and use the editor tool `on this website
 <https://bids.github.io/colormap/>`_.
 
 Downloads:
-  https://pypi.python.org/pypi/viscm/
+  * https://pypi.python.org/pypi/viscm/
+  * https://anaconda.org/conda-forge/viscm/
 
 Code and bug tracker:
   https://github.com/matplotlib/viscm
