@@ -32,14 +32,15 @@ Just run it with
 $ python bezier_builder.py
 
 """
-from __future__ import division, print_function, absolute_import
+from __future__ import absolute_import, division, print_function
+
+from math import factorial
 
 import numpy as np
-from math import factorial
+from matplotlib.backends.qt_compat import QtCore, QtGui
+from matplotlib.lines import Line2D
 from scipy import signal
 
-from matplotlib.lines import Line2D
-from matplotlib.backends.qt_compat import QtGui, QtCore
 from .minimvc import Trigger
 
 

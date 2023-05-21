@@ -5,17 +5,18 @@
 
 # Simple script using CIECAM02 and CAM02-UCS to visualize properties of a
 # matplotlib colormap
-from __future__ import division, print_function, absolute_import
-import sys
-import os.path
+from __future__ import absolute_import, division, print_function
+
 import json
+import os.path
+import sys
 
 import numpy as np
 
 # matplotlib.rcParams['backend'] = "QT4AGG"
 # Do this first before any other matplotlib imports, to force matplotlib to
 # use a Qt backend
-from matplotlib.backends.qt_compat import QtWidgets, QtCore, QtGui, _getSaveFileName
+from matplotlib.backends.qt_compat import QtCore, QtGui, QtWidgets, _getSaveFileName
 
 try:
     from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -26,22 +27,20 @@ except ImportError:
         from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
 import matplotlib
+import matplotlib.colors
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d
-from matplotlib.gridspec import GridSpec
-import matplotlib.colors
-from matplotlib.colors import ListedColormap
-
-from scipy.interpolate import UnivariateSpline
-
 from colorspacious import (
-    cspace_converter,
-    cspace_convert,
     CIECAM02Space,
     CIECAM02Surround,
+    cspace_convert,
+    cspace_converter,
 )
-from .minimvc import Trigger
+from matplotlib.colors import ListedColormap
+from matplotlib.gridspec import GridSpec
+from scipy.interpolate import UnivariateSpline
 
+from .minimvc import Trigger
 
 # The correct L_A value for the standard sRGB viewing conditions is:
 #   (64 / np.pi) / 5
@@ -555,10 +554,10 @@ class viscm_editor(object):
         method="CatmulClark",
     ):
         from .bezierbuilder import (
-            SingleBezierCurveModel,
-            TwoBezierCurveModel,
             ControlPointBuilder,
             ControlPointModel,
+            SingleBezierCurveModel,
+            TwoBezierCurveModel,
         )
 
         if figure is None:

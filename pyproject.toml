@@ -47,3 +47,7 @@ package-data = {viscm = ["examples/*"]}
 
 [tool.black]
 target-version = ["py37", "py38", "py39", "py310", "py311"]
+
+[tool.isort]
+profile = "black"
+known_first_party = "viscm"

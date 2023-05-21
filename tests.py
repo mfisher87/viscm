@@ -1,9 +1,10 @@
-from viscm.gui import *
-from viscm.bezierbuilder import *
-import numpy as np
 import matplotlib as mpl
-from matplotlib.backends.qt_compat import QtGui, QtCore
+import numpy as np
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.qt_compat import QtCore, QtGui
+
+from viscm.bezierbuilder import *
+from viscm.gui import *
 
 cms = {
     "viscm/examples/sample_linear.jscm",
