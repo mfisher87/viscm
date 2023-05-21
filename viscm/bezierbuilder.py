@@ -37,9 +37,8 @@ from __future__ import absolute_import, division, print_function
 from math import factorial
 
 import numpy as np
-from matplotlib.backends.qt_compat import QtCore, QtGui
+from matplotlib.backends.qt_compat import QtCore
 from matplotlib.lines import Line2D
-from scipy import signal
 
 from .minimvc import Trigger
 

@@ -60,7 +60,10 @@ def cli():
         type=str,
         default="linear",
         choices=["linear", "diverging", "diverging-continuous"],
-        help="Choose a colormap type. Supported options are 'linear', 'diverging', and 'diverging-continuous",
+        help=(
+            "Choose a colormap type. Supported options are 'linear', 'diverging',"
+            " and 'diverging-continuous"
+        ),
     )
     parser.add_argument(
         "-m",
@@ -68,7 +71,10 @@ def cli():
         type=str,
         default="CatmulClark",
         choices=["Bezier", "CatmulClark"],
-        help="Choose a spline construction method. 'CatmulClark' is the default, but you may choose the legacy option 'Bezier'",
+        help=(
+            "Choose a spline construction method. 'CatmulClark' is the default, but"
+            " you may choose the legacy option 'Bezier'"
+        ),
     )
     parser.add_argument(
         "--save",

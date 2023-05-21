@@ -1,10 +1,7 @@
-import matplotlib as mpl
 import numpy as np
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.qt_compat import QtCore, QtGui
 
-from viscm.bezierbuilder import *
-from viscm.gui import *
+from viscm.bezierbuilder import json
+from viscm.gui import Colormap, viscm_editor
 
 cms = {
     "viscm/examples/sample_linear.jscm",
@@ -53,13 +50,24 @@ def test_editor_loads_native():
                 assert colors[i][z] == np.rint(editor_colors[i][z] / 256)
 
 
+# import matplotlib as mpl
+# from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+# from matplotlib.backends.qt_compat import QtCore, QtGui
+#
 # def test_editor_add_point():
 #     # Testing linear
-
+#
 #     fig = plt.figure()
 #     figure_canvas = FigureCanvas(fig)
-#     linear = viscm_editor(min_Jp=40, max_Jp=60, xp=[-10, 10], yp=[0,0], figure=fig, cmtype="linear")
-
+#     linear = viscm_editor(
+#         min_Jp=40,
+#         max_Jp=60,
+#         xp=[-10, 10],
+#         yp=[0,0],
+#         figure=fig,
+#         cmtype="linear",
+#     )
+#
 #     Jp, ap, bp = linear.cmap_model.get_Jpapbp(3)
 #     eJp, eap, ebp = [40, 50, 60], [-10, 0, 10], [0, 0, 0]
 #     for i in range(3):
@@ -77,8 +85,20 @@ def test_editor_loads_native():
 
 #     # Testing adding a point to linear
 #     linear.bezier_builder.mode = "add"
-#     qtEvent = QtGui.QMouseEvent(QtCore.QEvent.MouseButtonPress, QtCore.QPoint(), QtCore.Qt.LeftButton, QtCore.Qt.LeftButton, QtCore.Qt.ShiftModifier)
-#     event = mpl.backend_bases.MouseEvent("button_press_event", figure_canvas, 0, 10, guiEvent=qtEvent)
+#     qtEvent = QtGui.QMouseEvent(
+#         QtCore.QEvent.MouseButtonPress,
+#         QtCore.QPoint(),
+#         QtCore.Qt.LeftButton,
+#         QtCore.Qt.LeftButton,
+#         QtCore.Qt.ShiftModifier,
+#     )
+#     event = mpl.backend_bases.MouseEvent(
+#         "button_press_event",
+#         figure_canvas,
+#         0,
+#         10,
+#         guiEvent=qtEvent,
+#     )
 #     event.xdata = 0
 #     event.ydata = 10
 #     event.inaxes = linear.bezier_builder.ax
@@ -99,8 +119,20 @@ def test_editor_loads_native():
 
 #     # Removing a point from linear
 #     linear.bezier_builder.mode = "remove"
-#     qtEvent = QtGui.QMouseEvent(QtCore.QEvent.MouseButtonPress, QtCore.QPoint(), QtCore.Qt.LeftButton, QtCore.Qt.LeftButton, QtCore.Qt.ControlModifier)
-#     event = mpl.backend_bases.MouseEvent("button_press_event", figure_canvas, 0, 10, guiEvent=qtEvent)
+#     qtEvent = QtGui.QMouseEvent(
+#         QtCore.QEvent.MouseButtonPress,
+#         QtCore.QPoint(),
+#         QtCore.Qt.LeftButton,
+#         QtCore.Qt.LeftButton,
+#         QtCore.Qt.ControlModifier,
+#     )
+#     event = mpl.backend_bases.MouseEvent(
+#         "button_press_event",
+#         figure_canvas,
+#         0,
+#         10,
+#         guiEvent=qtEvent,
+#     )
 #     event.xdata = 0
 #     event.ydata = 10
 #     event.inaxes = linear.bezier_builder.ax

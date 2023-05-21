@@ -960,7 +960,11 @@ def loadpyfile(path):
         "__name__": "",
         "__file__": os.path.basename(path),
     }
+
+    # flake8: noqa
+    # FIXME: Should be `args.colormap` should be `path`?
     with open(args.colormap) as f:
+        # flake8: noqa
         code = compile(f.read(), os.path.basename(args.colormap), "exec")
         exec(code, globals(), ns)
 
