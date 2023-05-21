@@ -3,6 +3,7 @@
 # Copyright (C) 2015 Stefan van der Walt <stefanv@berkeley.edu>
 # See file LICENSE.txt for license information.
 
+
 class Trigger(object):
     def __init__(self):
         self._callbacks = set()
