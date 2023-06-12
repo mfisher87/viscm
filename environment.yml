@@ -1,0 +1,22 @@
+name: "viscm"
+channels:
+  - "conda-forge"
+  - "nodefaults"
+dependencies:
+  # Runtime
+  - "python ~=3.11"
+  - "numpy ~=1.24"
+  - "matplotlib ~=3.7"
+  - "colorspacious ~=1.1"
+  - "scipy ~=1.10"
+
+  # Development
+  - "mypy ~=1.3.0"
+  - "pre-commit"
+  - "pytest"
+  - "pytest-cov"
+  - "pytest-qt"
+  - "pytest-xvfb"
+
+  - pip:
+    - "build ~=0.10"
