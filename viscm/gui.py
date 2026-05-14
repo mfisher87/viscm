@@ -1185,7 +1185,7 @@ class EditorWindow(QtWidgets.QMainWindow):
         mainlayout.addLayout(min_slider_layout)
 
         if viscm_editor.cmtype == "diverging":
-            smoothness_slider = QtWidgets.QSlider(Qt.Horizontal)
+            smoothness_slider = QtWidgets.QSlider(Qt.Orientation.Horizontal)
             # We want the slider to vary filter_k exponentially between 5 and
             # 1000. So it should go from [log10(5), log10(1000)]
             # which is about [0.699, 3.0]
@@ -1194,15 +1194,15 @@ class EditorWindow(QtWidgets.QMainWindow):
             # to deal with this.
             smoothness_slider.setMinimum(699)
             smoothness_slider.setMaximum(3000)
-            smoothness_slider.setTickPosition(QtWidgets.QSlider.NoTicks)
+            smoothness_slider.setTickPosition(QtWidgets.QSlider.TickPosition.NoTicks)
             smoothness_slider.valueChanged.connect(self.smoothness_slider_moved)
 
             # maximum width
             smoothness_slider_num = QtWidgets.QLabel("1000.00")
             metrics = QtGui.QFontMetrics(smoothness_slider_num.font())
-            max_width = metrics.width("1000.00")
+            max_width = metrics.horizontalAdvance("1000.00")
             smoothness_slider_num.setFixedWidth(max_width)
-            smoothness_slider_num.setAlignment(Qt.AlignRight)
+            smoothness_slider_num.setAlignment(Qt.AlignmentFlag.AlignRight)
             self.smoothness_slider_num = smoothness_slider_num
 
             smoothness_slider_layout = QtWidgets.QHBoxLayout()
