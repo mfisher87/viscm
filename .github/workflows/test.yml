@@ -11,9 +11,9 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - "3.11"
-          - "3.10"
-          - "3.9"
+          - "3.14"
+          - "3.13"
+          - "3.12"
         pyqt-dependency:
           - "PyQt6"
           - "PySide6"
