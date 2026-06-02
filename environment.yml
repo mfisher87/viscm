@@ -4,7 +4,7 @@ channels:
   - "nodefaults"
 dependencies:
   # Runtime
-  - "python ~=3.11"
+  - "python ~=3.12"
   - "numpy ~=1.24"
   - "matplotlib ~=3.7"
   - "colorspacious ~=1.1"
