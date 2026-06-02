@@ -15,18 +15,27 @@ classifiers = [
   "Programming Language :: Python :: 3",
 ]
 
-requires-python = "~=3.9"
+requires-python = ">=3.12"
 dependencies = [
-  "numpy ~=1.22",
-  "matplotlib ~=3.5",
-  "colorspacious ~=1.1",
-  "scipy ~=1.8",
+  "numpy >=1.22",
+  "matplotlib >=3.5",
+  "colorspacious >=1.1",
+  "scipy >=1.8",
 ]
 
 [project.optional-dependencies]
 # Qt6 was released 2020.08.12
 PySide = ["PySide6"]
 PyQt = ["PyQt6"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.1.0",
+    "pytest-qt>=4.5.0",
+    "pytest-xvfb>=3.1.1",
+]
 
 [project.urls]
 repository = "https://github.com/matplotlib/viscm"
@@ -51,26 +60,20 @@ package-data = {viscm = ["examples/*"]}
 
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 
 # These libraries don't have type stubs. Mypy will see them as `Any` and not
 # throw an [import] error.
 [[tool.mypy.overrides]]
 module = [
   "colorspacious",
-  "matplotlib.*",
   "mpl_toolkits.*",
   "scipy.*",
 ]
 ignore_missing_imports = true
 
 
-
-[tool.black]
-target-version = ["py39", "py310", "py311"]
-
-[tool.ruff]
-target-version = "py39"
+[tool.ruff.lint]
 select = [
   "F",
   "E",
@@ -86,9 +89,16 @@ select = [
   "T10",
   "RUF",
 ]
+ignore = [
+  "B905",
+  "UP031",
+  "RUF005",
+  "RUF046",
+  "RUF059",
+]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "viscm/gui.py" = ["N8"]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 11
