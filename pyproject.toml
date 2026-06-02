@@ -89,6 +89,13 @@ select = [
   "T10",
   "RUF",
 ]
+ignore = [
+  "B905",
+  "UP031",
+  "RUF005",
+  "RUF046",
+  "RUF059",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "viscm/gui.py" = ["N8"]
