@@ -28,12 +28,10 @@ jobs:
 
       - name: "Install test and project dependencies"
         run: |
-          # Project dependencies from pyproject.toml
+          # Project dependencies + test dependencies from pyproject.toml
           # NOTE: Also builds viscm. How do we avoid this?
-          pip install .
+          pip install --group dev . ${{ matrix.pyqt-dependency }}
 
-          # Test dependencies
-          pip install pytest pytest-cov pytest-qt pytest-xvfb ${{ matrix.pyqt-dependency }}
           # pytest-qt CI dependencies: https://pytest-qt.readthedocs.io/en/latest/troubleshooting.html#github-actions
           sudo apt update
           sudo apt install -y \
@@ -47,9 +45,6 @@ jobs:
           # In Pythons >= 3.10, tests fail with `RuntimeError: Invalid DISPLAY
           # variable`, unless this variable is set:
           MPLBACKEND: "Agg"
-
-      - name: "Install mypy"
-        run: "pip install mypy>=1.3"
 
       - name: "Run typechecker"
         run: "make typecheck"
