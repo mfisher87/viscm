@@ -284,7 +284,9 @@ class viscm:
         title(ax, "Perceptual derivative")
         label(
             ax,
-            f"Length: {arclength:0.1f}\nRMS deviation from flat: {rmse:0.1f} ({100 * rmse / arclength:0.1f}%)",
+            f"Length: {arclength:0.1f}"
+            f"\nRMS deviation from flat: {rmse:0.1f}"
+            f" ({100 * rmse / arclength:0.1f}%)",
         )
         ax.set_ylim(-delta_ymax(-local_derivs), delta_ymax(local_derivs))
         ax.get_xaxis().set_visible(False)
@@ -306,7 +308,9 @@ class viscm:
         lightness_rmse = np.std(lightness_derivs)
         label(
             ax,
-            f"Length: {lightness_arclength:0.1f}\nRMS deviation from flat: {lightness_rmse:0.1f} ({100 * lightness_rmse / lightness_arclength:0.1f}%)",
+            f"Length: {lightness_arclength:0.1f}"
+            f"\nRMS deviation from flat: {lightness_rmse:0.1f}"
+            f" ({100 * lightness_rmse / lightness_arclength:0.1f}%)",
         )
 
         ax.set_ylim(-delta_ymax(-lightness_derivs), delta_ymax(lightness_derivs))
