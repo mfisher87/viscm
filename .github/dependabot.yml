@@ -1,8 +1,8 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"      # Location of your workflow files
+    directory: "/"
     schedule:
-      interval: "weekly"  # Options: daily, weekly, monthly
+      interval: "monthly"
     cooldown:
       default-days: 7
