@@ -14,9 +14,9 @@ jobs:
           - "3.14"
           - "3.13"
           - "3.12"
-        pyqt-dependency:
-          - "PyQt6"
-          - "PySide6"
+        qt-extra:
+          - "PyQt"
+          - "PySide"
 
     steps:
       - uses: "actions/checkout@v3"
@@ -30,7 +30,7 @@ jobs:
         run: |
           # Project dependencies + test dependencies from pyproject.toml
           # NOTE: Also builds viscm. How do we avoid this?
-          pip install --group dev . ${{ matrix.pyqt-dependency }}
+          pip install --group dev .[${{ matrix.qt-extra }}]
 
           # pytest-qt CI dependencies: https://pytest-qt.readthedocs.io/en/latest/troubleshooting.html#github-actions
           sudo apt update
