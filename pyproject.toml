@@ -28,6 +28,15 @@ dependencies = [
 PySide = ["PySide6"]
 PyQt = ["PyQt6"]
 
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.1.0",
+    "pytest-qt>=4.5.0",
+    "pytest-xvfb>=3.1.1",
+]
+
 [project.urls]
 repository = "https://github.com/matplotlib/viscm"
 # documentation = "https://viscm.readthedocs.io"
